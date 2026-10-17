@@ -1,0 +1,41 @@
+# Template lu par deploy-agent : les ${VAR} viennent des secrets du projet,
+# ${DOMAIN} = sous-domaine du projet. Le premier réseau est celui de Traefik.
+services:
+  coloc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      AUTH_SECRET: ${AUTH_SECRET}
+      NEXTAUTH_URL: https://${DOMAIN}
+      AUTH_TRUST_HOST: "true"
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_EMAIL: ${VAPID_EMAIL}
+      CRON_SECRET: ${CRON_SECRET}
+      NODE_ENV: production
+    networks:
+      - proxy
+      - db
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.coloc.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.coloc.entrypoints=websecure"
+      - "traefik.http.routers.coloc.tls.certresolver=letsencrypt"
+      - "traefik.http.services.coloc.loadbalancer.server.port=3000"
+      - "traefik.http.routers.coloc-http.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.coloc-http.entrypoints=web"
+      - "traefik.http.routers.coloc-http.middlewares=coloc-redirect-https"
+      - "traefik.http.middlewares.coloc-redirect-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.coloc-redirect-https.redirectscheme.permanent=true"
+
+networks:
+  proxy:
+    external: true
+  db:
+    external: true

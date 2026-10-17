@@ -1,0 +1,275 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  COLOC
+  ADMIN
+  PROPRIETAIRE
+}
+
+enum ChoreStatus {
+  TODO
+  DONE
+}
+
+enum SwapStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum ListCategory {
+  CONSOMMABLE
+  PROJET
+}
+
+enum ProjectStatus {
+  IDEA
+  IN_PROGRESS
+  DONE
+}
+
+enum CommentTarget {
+  CHORE
+  PROJECT
+}
+
+enum MessageTag {
+  MENAGE
+  BRUIT
+  ARGENT
+  GENERAL
+}
+
+enum AnnouncementType {
+  REUNION
+  VISITE
+  TRAVAUX
+  INFORMATION
+  AUTRE
+}
+
+enum AnnouncementAnswer {
+  DISPONIBLE
+  PAS_DISPONIBLE
+}
+
+enum MentionSource {
+  MESSAGE
+  COMMENT
+}
+
+model Household {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  users     User[]
+}
+
+model User {
+  id                     String            @id @default(cuid())
+  householdId            String
+  household              Household         @relation(fields: [householdId], references: [id])
+  username               String?           @unique
+  passwordHash           String?
+  displayName            String
+  color                  String            @default("#6366f1")
+  role                   Role              @default(COLOC)
+  rotationOrder          Int?
+  choresRemindersEnabled Boolean           @default(true)
+  createdAt              DateTime          @default(now())
+
+  invitation             Invitation?
+  choreAssignments       ChoreAssignment[]
+  swapRequestsFrom       SwapRequest[]     @relation("SwapRequester")
+  swapRequestsTo         SwapRequest[]     @relation("SwapTarget")
+  listItemsAuthored      ListItem[]        @relation("ListItemAuthor")
+  listItemsAssigned      ListItem[]        @relation("ListItemAssignee")
+  projectsAuthored       Project[]
+  comments               Comment[]
+  messages               Message[]
+  reactions              Reaction[]
+  mentions               Mention[]
+  announcements          Announcement[]
+  announcementResponses  AnnouncementResponse[]
+  pushSubscriptions      PushSubscription[]
+  notificationLogs       NotificationLog[]
+}
+
+model Invitation {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  user      User      @relation(fields: [userId], references: [id])
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model ChoreAssignment {
+  id        String      @id @default(cuid())
+  weekStart DateTime    // Toujours un samedi à 00:00:00 UTC
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  status    ChoreStatus @default(TODO)
+  doneAt    DateTime?
+  createdAt DateTime    @default(now())
+
+  swapFrom  SwapRequest[] @relation("SwapFrom")
+  swapTo    SwapRequest[] @relation("SwapTo")
+
+  @@unique([weekStart, userId])
+}
+
+model SwapRequest {
+  id               String          @id @default(cuid())
+  fromAssignment   ChoreAssignment @relation("SwapFrom", fields: [fromAssignmentId], references: [id])
+  fromAssignmentId String
+  toAssignment     ChoreAssignment @relation("SwapTo", fields: [toAssignmentId], references: [id])
+  toAssignmentId   String
+  requester        User            @relation("SwapRequester", fields: [requesterId], references: [id])
+  requesterId      String
+  target           User            @relation("SwapTarget", fields: [targetId], references: [id])
+  targetId         String
+  status           SwapStatus      @default(PENDING)
+  createdAt        DateTime        @default(now())
+  resolvedAt       DateTime?
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  householdId String
+  title       String
+  description String?
+  status      ProjectStatus @default(IDEA)
+  authorId    String
+  author      User          @relation(fields: [authorId], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  listItems   ListItem[]
+  comments    Comment[]
+}
+
+model ListItem {
+  id          String       @id @default(cuid())
+  householdId String
+  name        String
+  category    ListCategory @default(CONSOMMABLE)
+  projectId   String?
+  project     Project?     @relation(fields: [projectId], references: [id])
+  needed      Boolean      @default(true)
+  assigneeId  String?
+  assignee    User?        @relation("ListItemAssignee", fields: [assigneeId], references: [id])
+  authorId    String
+  author      User         @relation("ListItemAuthor", fields: [authorId], references: [id])
+  boughtAt    DateTime?
+  createdAt   DateTime     @default(now())
+}
+
+model Comment {
+  id           String        @id @default(cuid())
+  authorId     String
+  author       User          @relation(fields: [authorId], references: [id])
+  body         String
+  targetType   CommentTarget
+  choreId      String?
+  projectId    String?
+  project      Project?      @relation(fields: [projectId], references: [id])
+  createdAt    DateTime      @default(now())
+  editedAt     DateTime?
+}
+
+model Message {
+  id          String      @id @default(cuid())
+  householdId String
+  authorId    String
+  author      User        @relation(fields: [authorId], references: [id])
+  body        String
+  tag         MessageTag?
+  createdAt   DateTime    @default(now())
+  editedAt    DateTime?
+
+  reactions   Reaction[]
+  mentions    Mention[]
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, messageId])
+}
+
+model Mention {
+  id          String        @id @default(cuid())
+  sourceType  MentionSource
+  sourceId    String
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  messageId   String?
+  message     Message?      @relation(fields: [messageId], references: [id])
+  notifiedAt  DateTime?
+  createdAt   DateTime      @default(now())
+}
+
+model Announcement {
+  id          String           @id @default(cuid())
+  householdId String
+  authorId    String
+  author      User             @relation(fields: [authorId], references: [id])
+  title       String
+  body        String
+  type        AnnouncementType
+  eventAt     DateTime?
+  archivedAt  DateTime?
+  createdAt   DateTime         @default(now())
+
+  responses   AnnouncementResponse[]
+}
+
+model AnnouncementResponse {
+  id             String              @id @default(cuid())
+  announcementId String
+  announcement   Announcement        @relation(fields: [announcementId], references: [id])
+  userId         String
+  user           User                @relation(fields: [userId], references: [id])
+  readAt         DateTime?
+  answer         AnnouncementAnswer?
+  respondedAt    DateTime?
+  createdAt      DateTime            @default(now())
+
+  @@unique([announcementId, userId])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+}
+
+model NotificationLog {
+  id      String   @id @default(cuid())
+  userId  String
+  user    User     @relation(fields: [userId], references: [id])
+  kind    String
+  refId   String?
+  sentAt  DateTime @default(now())
+
+  @@unique([userId, kind, refId])
+}
