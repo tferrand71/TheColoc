@@ -43,3 +43,8 @@ next-env.d.ts
 
 # prisma generated client
 /src/generated/
+
+# Service worker généré par Serwist au build
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js

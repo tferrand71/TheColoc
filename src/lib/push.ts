@@ -1,11 +1,17 @@
 import webpush from "web-push";
 import { prisma } from "@/lib/prisma";
 
-webpush.setVapidDetails(
-  process.env.VAPID_EMAIL!,
-  process.env.VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+// Initialisé au premier envoi : les clés n'existent qu'au runtime, pas pendant `next build`
+let vapidReady = false;
+function ensureVapid() {
+  if (vapidReady) return;
+  webpush.setVapidDetails(
+    process.env.VAPID_EMAIL!,
+    process.env.VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  );
+  vapidReady = true;
+}
 
 interface PushPayload {
   title: string;
@@ -15,6 +21,7 @@ interface PushPayload {
 
 /** Envoie une notification push à tous les appareils d'un utilisateur. */
 export async function sendPushToUser(userId: string, payload: PushPayload) {
+  ensureVapid();
   const subscriptions = await prisma.pushSubscription.findMany({
     where: { userId },
   });
