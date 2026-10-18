@@ -13,12 +13,11 @@ const HOUSEHOLD_NAME = "La Coloc";
 const USERS = [
   // ADMIN — toi. rotationOrder = 1 = premier dans la rotation ménage.
   { displayName: "Tobias", color: "#6366f1", role: "ADMIN" as const, rotationOrder: 1 },
-  // Les 3 autres colocs — modifie les noms et couleurs
-  { displayName: "Coloc 2", color: "#f59e0b", role: "COLOC" as const, rotationOrder: 2 },
-  { displayName: "Coloc 3", color: "#10b981", role: "COLOC" as const, rotationOrder: 3 },
-  { displayName: "Coloc 4", color: "#ef4444", role: "COLOC" as const, rotationOrder: 4 },
+  { displayName: "Antoine", color: "#f59e0b", role: "COLOC" as const, rotationOrder: 2 },
+  { displayName: "Landry", color: "#10b981", role: "COLOC" as const, rotationOrder: 3 },
+  { displayName: "Anass", color: "#ef4444", role: "COLOC" as const, rotationOrder: 4 },
   // Propriétaire — pas d'ordre de rotation
-  { displayName: "Propriétaire", color: "#64748b", role: "PROPRIETAIRE" as const, rotationOrder: null },
+  { displayName: "Thierry", color: "#64748b", role: "PROPRIETAIRE" as const, rotationOrder: null },
 ] as const;
 
 const INVITATION_TTL_DAYS = 7;
