@@ -1,14 +1,37 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import { signOut } from "next-auth/react";
+import { Bell, CircleCheck, Lock, LogOut } from "lucide-react";
 import { changePassword, toggleChoresReminders } from "./actions";
 import { PushManager } from "@/components/PushManager";
+import { Avatar } from "@/components/ui";
 
 interface Props {
   displayName: string;
   color: string;
   username: string | null;
   choresEnabled: boolean;
+}
+
+function Panel({ icon: Icon, title, description, children }: {
+  icon: typeof Bell;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="card overflow-hidden">
+      <div className="flex items-start gap-3 border-b border-[var(--color-hairline)] px-5 py-4">
+        <Icon className="mt-0.5 h-4 w-4 text-[var(--color-mauve-text)]" />
+        <div>
+          <h2 className="text-sm font-semibold text-[var(--color-text-main)]">{title}</h2>
+          <p className="text-xs text-[var(--color-text-muted)]">{description}</p>
+        </div>
+      </div>
+      <div className="p-5">{children}</div>
+    </section>
+  );
 }
 
 export function ProfilClient({ displayName, color, username, choresEnabled }: Props) {
@@ -27,100 +50,72 @@ export function ProfilClient({ displayName, color, username, choresEnabled }: Pr
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Identité */}
-      <div className="flex items-center gap-4 rounded-2xl border border-[var(--color-hairline)] bg-[var(--color-raised)] p-5">
-        <div
-          className="flex h-14 w-14 items-center justify-center rounded-2xl text-xl font-bold text-white"
-          style={{ backgroundColor: color, boxShadow: `0 0 24px -4px ${color}60` }}
-        >
-          {displayName.slice(0, 2).toUpperCase()}
+    <div className="flex flex-col gap-5">
+      <div className="card flex items-center gap-4 p-5">
+        <Avatar name={displayName} color={color} size="xl" />
+        <div className="min-w-0 flex-1">
+          <p className="text-lg font-semibold tracking-tight text-[var(--color-text-main)]">{displayName}</p>
+          {username && <p className="font-mono text-sm text-[var(--color-text-muted)]">@{username}</p>}
         </div>
-        <div>
-          <p className="font-semibold text-[var(--color-text-main)]">{displayName}</p>
-          {username && (
-            <p className="mt-0.5 font-mono text-sm text-[var(--color-mauve-text)]">@{username}</p>
-          )}
-        </div>
+        <button onClick={() => signOut({ callbackUrl: "/connexion" })} className="btn btn-ghost btn-sm lg:hidden">
+          <LogOut className="h-4 w-4" />
+          Déconnexion
+        </button>
       </div>
 
-      {/* Notifications push */}
-      <section>
-        <h2 className="eyebrow mb-3">Notifications push</h2>
-        <div className="flex flex-col gap-3">
-          <PushManager choresEnabled={reminders} />
+      <Panel icon={Bell} title="Notifications" description="Mentions, échanges de ménage et rappels.">
+        <div className="flex flex-col gap-4">
+          <PushManager />
 
-          {/* Toggle rappels ménage */}
-          <button
-            onClick={handleToggle}
-            disabled={isPending}
-            className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-all
-              ${reminders
-                ? "border-[var(--color-ok)]/20 bg-[var(--color-ok)]/5"
-                : "border-[var(--color-hairline)] bg-[var(--color-raised)]"
-              }`}
-          >
-            <div className="text-left">
+          <div className="flex items-center justify-between gap-4">
+            <div>
               <p className="text-sm font-medium text-[var(--color-text-main)]">Rappels ménage</p>
-              <p className="text-xs text-[var(--color-text-muted)]">
-                Samedi 9h et dimanche 19h si pas encore validé
-              </p>
+              <p className="text-xs text-[var(--color-text-muted)]">Samedi 9 h, puis dimanche 19 h si ce n'est pas validé.</p>
             </div>
-            <div className={`flex h-6 w-10 items-center rounded-full transition-colors
-              ${reminders ? "bg-[var(--color-ok)]" : "bg-[var(--color-hairline-strong)]"}`}
+            <button
+              role="switch"
+              aria-checked={reminders}
+              aria-label="Rappels ménage"
+              onClick={handleToggle}
+              disabled={isPending}
+              className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${reminders ? "bg-[var(--color-mauve)]" : "bg-[var(--color-hairline-strong)]"}`}
             >
-              <div className={`h-4 w-4 rounded-full bg-white shadow transition-transform
-                ${reminders ? "translate-x-5" : "translate-x-1"}`}
-              />
-            </div>
-          </button>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Les mentions et demandes d'échange sont toujours notifiées.
-          </p>
+              <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${reminders ? "translate-x-6" : "translate-x-1"}`} />
+            </button>
+          </div>
+          <p className="text-xs text-[var(--color-text-faint)]">Les mentions et les demandes d'échange sont toujours notifiées.</p>
         </div>
-      </section>
+      </Panel>
 
-      {/* Changer le mot de passe */}
-      <section>
-        <h2 className="eyebrow mb-3">Mot de passe</h2>
-        <form action={pwAction} className="flex flex-col gap-3 rounded-2xl border
-          border-[var(--color-hairline)] bg-[var(--color-raised)] p-5">
+      <Panel icon={Lock} title="Mot de passe" description="8 caractères minimum.">
+        <form action={pwAction} className="flex flex-col gap-4">
           {pwState.ok && (
-            <p className="rounded-lg bg-[var(--color-ok)]/10 px-3 py-2 text-sm text-[var(--color-ok)]">
-              ✓ Mot de passe modifié.
+            <p className="flex items-center gap-2 rounded-xl bg-[var(--color-ok)]/10 px-3 py-2 text-sm text-[var(--color-ok)]">
+              <CircleCheck className="h-4 w-4" /> Mot de passe modifié.
             </p>
           )}
           {pwState.error && (
-            <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{pwState.error}</p>
+            <p className="rounded-xl bg-[var(--color-down)]/10 px-3 py-2 text-sm text-[var(--color-down)]">{pwState.error}</p>
           )}
-          {[
-            { name: "current", label: "Mot de passe actuel", auto: "current-password" },
-            { name: "password", label: "Nouveau mot de passe", auto: "new-password" },
-            { name: "confirm", label: "Confirmer", auto: "new-password" },
-          ].map((f) => (
-            <div key={f.name}>
-              <label className="eyebrow mb-1.5 block">{f.label}</label>
-              <input
-                name={f.name}
-                type="password"
-                autoComplete={f.auto}
-                required
-                className="w-full rounded-xl border border-[var(--color-hairline-strong)] bg-[var(--color-ink)]
-                  px-4 py-2.5 text-sm text-[var(--color-text-main)] outline-none
-                  focus:border-[var(--color-mauve)] focus:ring-1 focus:ring-[var(--color-mauve)]"
-              />
+          <div>
+            <label htmlFor="current" className="label">Mot de passe actuel</label>
+            <input id="current" name="current" type="password" autoComplete="current-password" required className="input" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="password" className="label">Nouveau mot de passe</label>
+              <input id="password" name="password" type="password" autoComplete="new-password" required minLength={8} className="input" />
             </div>
-          ))}
-          <button
-            type="submit"
-            disabled={pwPending}
-            className="mt-1 rounded-xl bg-[var(--color-mauve)] py-2.5 text-sm font-semibold text-white
-              transition hover:bg-[#7c3aed] disabled:opacity-50"
-          >
+            <div>
+              <label htmlFor="confirm" className="label">Confirmation</label>
+              <input id="confirm" name="confirm" type="password" autoComplete="new-password" required minLength={8} className="input" />
+            </div>
+          </div>
+          <button type="submit" disabled={pwPending} className="btn btn-primary w-fit">
             {pwPending ? "Enregistrement…" : "Changer le mot de passe"}
           </button>
         </form>
-      </section>
+      </Panel>
     </div>
   );
 }

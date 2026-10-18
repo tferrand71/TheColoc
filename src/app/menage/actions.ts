@@ -110,3 +110,54 @@ export async function respondToSwap(swapRequestId: string, accept: boolean) {
   revalidatePath("/");
   return { ok: true };
 }
+
+// ── Absences ─────────────────────────────────────────────────────────────────
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_ABSENCE_DAYS = 365;
+
+function parseDay(value: FormDataEntryValue | null): Date | null {
+  if (typeof value !== "string" || !ISO_DATE.test(value)) return null;
+  const d = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export async function addAbsence(formData: FormData): Promise<{ ok?: true; error?: string }> {
+  const session = await auth();
+  if (!session?.user) return { error: "Non connecté" };
+  if (session.user.role === "PROPRIETAIRE") return { error: "Le propriétaire ne fait pas partie de la rotation" };
+
+  const startDate = parseDay(formData.get("startDate"));
+  const endDate = parseDay(formData.get("endDate"));
+  if (!startDate || !endDate) return { error: "Dates invalides" };
+  if (endDate < startDate) return { error: "La date de retour doit suivre la date de départ" };
+
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  if (endDate < today) return { error: "Cette période est déjà passée" };
+  if ((endDate.getTime() - startDate.getTime()) / 86_400_000 > MAX_ABSENCE_DAYS) {
+    return { error: "Une absence ne peut pas dépasser un an" };
+  }
+
+  await prisma.absence.create({
+    data: { userId: session.user.id, startDate, endDate },
+  });
+
+  revalidatePath("/menage");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function deleteAbsence(absenceId: string): Promise<{ ok?: true; error?: string }> {
+  const session = await auth();
+  if (!session?.user) return { error: "Non connecté" };
+
+  const { count } = await prisma.absence.deleteMany({
+    where: { id: absenceId, userId: session.user.id },
+  });
+  if (count === 0) return { error: "Absence introuvable" };
+
+  revalidatePath("/menage");
+  revalidatePath("/");
+  return { ok: true };
+}

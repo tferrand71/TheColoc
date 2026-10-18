@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { needItem, markBought, assignItem, deleteItem } from "./actions";
+import { Check, PackageCheck, Plus, UserPlus, X } from "lucide-react";
+import { needItem, markBought, assignItem } from "./actions";
+import { Avatar, EmptyState } from "@/components/ui";
 
 export interface ListItemRow {
   id: string;
@@ -18,19 +20,7 @@ export interface ColocRow {
   color: string;
 }
 
-function Avatar({ displayName, color, size = "sm" }: { displayName: string; color: string; size?: "sm" | "xs" }) {
-  const dim = size === "xs" ? "h-5 w-5 text-[9px] rounded" : "h-7 w-7 text-xs rounded-lg";
-  return (
-    <div
-      className={`flex flex-shrink-0 items-center justify-center font-bold text-white ${dim}`}
-      style={{ backgroundColor: color }}
-    >
-      {displayName.slice(0, 2).toUpperCase()}
-    </div>
-  );
-}
-
-function ListItemCard({
+function ListItemRowView({
   item,
   colocs,
   currentUserId,
@@ -56,66 +46,68 @@ function ListItemCard({
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-[var(--color-hairline)]
-      bg-[var(--color-raised)] px-4 py-3 transition-all hover:border-[var(--color-hairline-strong)]">
-      {/* Bouton cocher */}
+    <li className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--color-surface)]/50">
       <button
         onClick={handleBuy}
         disabled={isPending}
-        className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full
-          border-2 border-[var(--color-hairline-strong)] transition-colors
-          hover:border-[var(--color-ok)] hover:bg-[var(--color-ok)]/10 disabled:opacity-40"
-        aria-label="Marquer comme acheté"
-      />
+        className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border border-[var(--color-hairline-strong)] text-transparent transition-colors hover:border-[var(--color-ok)] hover:bg-[var(--color-ok)]/15 hover:text-[var(--color-ok)] disabled:opacity-40"
+        aria-label={`Marquer « ${item.name} » comme acheté`}
+        title="Acheté"
+      >
+        <Check className="h-3.5 w-3.5" />
+      </button>
 
-      {/* Nom */}
-      <span className="flex-1 text-sm text-[var(--color-text-main)]">{item.name}</span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm text-[var(--color-text-main)]">{item.name}</p>
+        <p className="text-[11px] text-[var(--color-text-faint)]">Ajouté par {item.author.displayName}</p>
+      </div>
 
-      {/* Assigné */}
       <div className="relative">
         <button
           onClick={() => setShowAssign((v) => !v)}
-          className="flex items-center gap-1.5 rounded-lg border border-[var(--color-hairline-strong)]
-            px-2 py-1 text-xs text-[var(--color-text-muted)] transition-colors
-            hover:border-[var(--color-mauve)]/40 hover:text-[var(--color-text-main)]"
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs transition-colors
+            ${item.assignee
+              ? "border-[var(--color-hairline-strong)] text-[var(--color-text-main)] hover:border-[var(--color-mauve)]/40"
+              : "border-dashed border-[var(--color-hairline-strong)] text-[var(--color-text-muted)] hover:border-[var(--color-mauve)]/40 hover:text-[var(--color-text-main)]"
+            }`}
         >
           {item.assignee ? (
             <>
-              <Avatar displayName={item.assignee.displayName} color={item.assignee.color} size="xs" />
-              <span>{item.assignee.displayName}</span>
+              <Avatar name={item.assignee.displayName} color={item.assignee.color} size="xs" />
+              {item.assignee.id === currentUserId ? "Moi" : item.assignee.displayName}
             </>
           ) : (
-            <span>+ Qui s'en charge ?</span>
+            <>
+              <UserPlus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Qui s'en charge ?</span>
+            </>
           )}
         </button>
 
         {showAssign && (
-          <div className="absolute right-0 top-full z-10 mt-1 min-w-[160px] rounded-xl border
-            border-[var(--color-hairline-strong)] bg-[var(--color-raised)] p-1 shadow-lg">
+          <div className="absolute right-0 top-full z-20 mt-1.5 min-w-[170px] rounded-xl border border-[var(--color-hairline-strong)] bg-[var(--color-surface)] p-1 shadow-2xl shadow-black/50">
             {colocs.map((c) => (
               <button
                 key={c.id}
                 onClick={() => handleAssign(c.id)}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs
-                  text-[var(--color-text-main)] transition-colors hover:bg-[var(--color-glass)]"
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-[var(--color-text-main)] transition-colors hover:bg-[var(--color-raised)]"
               >
-                <Avatar displayName={c.displayName} color={c.color} size="xs" />
+                <Avatar name={c.displayName} color={c.color} size="xs" />
                 {c.id === currentUserId ? "Moi" : c.displayName}
               </button>
             ))}
             {item.assignee && (
               <button
                 onClick={() => handleAssign(null)}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs
-                  text-red-400 transition-colors hover:bg-red-500/10"
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-[var(--color-down)] transition-colors hover:bg-[var(--color-down)]/10"
               >
-                Retirer
+                <X className="h-3.5 w-3.5" /> Retirer
               </button>
             )}
           </div>
         )}
       </div>
-    </div>
+    </li>
   );
 }
 
@@ -152,49 +144,39 @@ export function ListeClient({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Formulaire ajout rapide */}
-      <form onSubmit={handleAdd} className="flex gap-2">
+    <div className="flex flex-col gap-5">
+      <form onSubmit={handleAdd} className="card flex gap-2 p-2">
         <input
           ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Il manque… (PQ, liquide vaisselle…)"
-          className="flex-1 rounded-xl border border-[var(--color-hairline-strong)] bg-[var(--color-raised)]
-            px-4 py-2.5 text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
-            outline-none transition focus:border-[var(--color-mauve)] focus:ring-1 focus:ring-[var(--color-mauve)]"
+          placeholder="Qu'est-ce qui manque ?"
+          className="min-w-0 flex-1 bg-transparent px-3 text-sm text-[var(--color-text-main)] placeholder:text-[var(--color-text-faint)] outline-none"
         />
-        <button
-          type="submit"
-          disabled={isPending || !input.trim()}
-          className="rounded-xl bg-[var(--color-mauve)] px-4 py-2.5 text-sm font-semibold text-white
-            transition hover:bg-[#7c3aed] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {isPending ? "…" : "Il en faut"}
+        <button type="submit" disabled={isPending || !input.trim()} className="btn btn-primary">
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">Ajouter</span>
         </button>
       </form>
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-[var(--color-down)]">{error}</p>}
 
-      {/* Liste */}
       {active.length === 0 ? (
-        <div className="rounded-2xl border border-[var(--color-hairline)] bg-[var(--color-raised)] px-5 py-8 text-center">
-          <p className="text-2xl">✓</p>
-          <p className="mt-2 text-sm font-medium text-[var(--color-text-main)]">Tout est en stock</p>
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">Ajoute ce qui manque avec le champ ci-dessus.</p>
-        </div>
+        <EmptyState
+          icon={PackageCheck}
+          title="Tout est en stock"
+          description="Ajoute ce qui manque avec le champ ci-dessus : les colocs le verront tout de suite."
+        />
       ) : (
-        <div className="flex flex-col gap-2">
-          {active.map((item) => (
-            <ListItemCard key={item.id} item={item} colocs={colocs} currentUserId={currentUserId} />
-          ))}
+        <div>
+          <p className="mb-2 text-xs text-[var(--color-text-muted)]">
+            {active.length} article{active.length > 1 ? "s" : ""} à acheter · coche quand c'est fait
+          </p>
+          <ul className="card divide-y divide-[var(--color-hairline)]">
+            {active.map((item) => (
+              <ListItemRowView key={item.id} item={item} colocs={colocs} currentUserId={currentUserId} />
+            ))}
+          </ul>
         </div>
-      )}
-
-      {/* Compteur */}
-      {active.length > 0 && (
-        <p className="text-right text-xs text-[var(--color-text-muted)]">
-          {active.length} item{active.length > 1 ? "s" : ""} manquant{active.length > 1 ? "s" : ""}
-        </p>
       )}
     </div>
   );

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Archive, Check, Eye, X } from "lucide-react";
 import { respondToAnnouncement, archiveAnnouncement } from "../actions";
+import { Avatar, SectionTitle } from "@/components/ui";
 import type { AnnouncementAnswer } from "@/generated/prisma/client";
 
 interface ResponseRow {
@@ -12,22 +14,31 @@ interface ResponseRow {
   readAt: Date | null;
 }
 
+function ResponseStatus({ r }: { r: ResponseRow }) {
+  if (r.answer === "DISPONIBLE") return <span className="badge-ok"><Check className="h-3 w-3" />Disponible</span>;
+  if (r.answer === "PAS_DISPONIBLE") return <span className="badge-down"><X className="h-3 w-3" />Indisponible</span>;
+  if (r.readAt) return <span className="badge-neutral"><Eye className="h-3 w-3" />Lu</span>;
+  return <span className="text-xs text-[var(--color-text-faint)]">Pas encore lu</span>;
+}
+
 export function AnnouncementDetail({
   announcementId,
   needsResponse,
   isProprietaire,
+  isArchived,
   myAnswer: initialAnswer,
   responses,
 }: {
   announcementId: string;
   needsResponse: boolean;
   isProprietaire: boolean;
+  isArchived: boolean;
   myAnswer: AnnouncementAnswer | null;
   responses: ResponseRow[];
 }) {
   const [myAnswer, setMyAnswer] = useState(initialAnswer);
   const [isPending, startTransition] = useTransition();
-  const [archived, setArchived] = useState(false);
+  const [archived, setArchived] = useState(isArchived);
 
   function handleRespond(answer: AnnouncementAnswer) {
     setMyAnswer(answer);
@@ -42,105 +53,66 @@ export function AnnouncementDetail({
     startTransition(() => { void archiveAnnouncement(announcementId); });
   }
 
-  if (archived) {
-    return <p className="text-sm text-[var(--color-text-muted)]">Annonce archivée.</p>;
-  }
-
   return (
-    <div className="flex flex-col gap-6">
-      {/* Réponse coloc */}
-      {!isProprietaire && needsResponse && (
-        <div>
-          <h2 className="eyebrow mb-3">Ta disponibilité</h2>
-          <div className="flex gap-3">
+    <div className="flex flex-col gap-8">
+      {!isProprietaire && needsResponse && !archived && (
+        <section>
+          <SectionTitle title="Ta disponibilité" />
+          <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => handleRespond("DISPONIBLE")}
               disabled={isPending}
-              className={`flex-1 rounded-xl border py-3 text-sm font-semibold transition-all
-                ${myAnswer === "DISPONIBLE"
-                  ? "border-[var(--color-ok)]/40 bg-[var(--color-ok)]/15 text-[var(--color-ok)]"
-                  : "border-[var(--color-hairline-strong)] text-[var(--color-text-muted)] hover:text-[var(--color-ok)] hover:border-[var(--color-ok)]/30"
-                }`}
+              className={`btn py-3 ${myAnswer === "DISPONIBLE"
+                ? "bg-[var(--color-ok)]/15 text-[var(--color-ok)] ring-1 ring-inset ring-[var(--color-ok)]/40"
+                : "btn-secondary"}`}
             >
-              ✓ Disponible
+              <Check className="h-4 w-4" /> Disponible
             </button>
             <button
               onClick={() => handleRespond("PAS_DISPONIBLE")}
               disabled={isPending}
-              className={`flex-1 rounded-xl border py-3 text-sm font-semibold transition-all
-                ${myAnswer === "PAS_DISPONIBLE"
-                  ? "border-red-500/40 bg-red-500/10 text-red-400"
-                  : "border-[var(--color-hairline-strong)] text-[var(--color-text-muted)] hover:text-red-400 hover:border-red-500/30"
-                }`}
+              className={`btn py-3 ${myAnswer === "PAS_DISPONIBLE"
+                ? "bg-[var(--color-down)]/10 text-[var(--color-down)] ring-1 ring-inset ring-[var(--color-down)]/40"
+                : "btn-secondary"}`}
             >
-              ✗ Pas disponible
+              <X className="h-4 w-4" /> Pas disponible
             </button>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Vue propriétaire : qui a lu et répondu */}
-      {isProprietaire && (
-        <div>
-          <h2 className="eyebrow mb-3">Réponses des colocs</h2>
+      {(isProprietaire || (needsResponse && responses.some((r) => r.answer))) && (
+        <section>
+          <SectionTitle title={isProprietaire ? "Suivi des colocataires" : "Disponibilités"} />
           {responses.length === 0 ? (
-            <p className="text-sm text-[var(--color-text-muted)]">Aucune réponse pour l'instant.</p>
+            <p className="card px-5 py-6 text-sm text-[var(--color-text-muted)]">Personne n'a encore ouvert l'annonce.</p>
           ) : (
-            <div className="flex flex-col gap-2">
-              {responses.map((r) => (
-                <div key={r.userId}
-                  className="flex items-center gap-3 rounded-xl border border-[var(--color-hairline)]
-                    bg-[var(--color-raised)] px-4 py-3">
-                  <div
-                    className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
-                    style={{ backgroundColor: r.color }}
-                  >
-                    {r.displayName.slice(0, 2).toUpperCase()}
-                  </div>
-                  <span className="flex-1 text-sm text-[var(--color-text-main)]">{r.displayName}</span>
-                  {r.answer === "DISPONIBLE" && <span className="text-xs font-medium text-[var(--color-ok)]">✓ Disponible</span>}
-                  {r.answer === "PAS_DISPONIBLE" && <span className="text-xs font-medium text-red-400">✗ Pas disponible</span>}
-                  {!r.answer && r.readAt && <span className="text-xs text-[var(--color-text-muted)]">Lu</span>}
-                  {!r.answer && !r.readAt && <span className="text-xs text-[var(--color-text-muted)] opacity-50">Pas encore lu</span>}
-                </div>
-              ))}
-            </div>
+            <ul className="card divide-y divide-[var(--color-hairline)]">
+              {responses
+                .filter((r) => isProprietaire || r.answer)
+                .map((r) => (
+                  <li key={r.userId} className="flex items-center gap-3 px-5 py-3">
+                    <Avatar name={r.displayName} color={r.color} size="sm" />
+                    <span className="flex-1 text-sm text-[var(--color-text-main)]">{r.displayName}</span>
+                    <ResponseStatus r={r} />
+                  </li>
+                ))}
+            </ul>
           )}
-
-          <button
-            onClick={handleArchive}
-            disabled={isPending}
-            className="mt-4 rounded-xl border border-[var(--color-hairline-strong)] px-4 py-2 text-sm
-              text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-main)]
-              disabled:opacity-40"
-          >
-            Archiver cette annonce
-          </button>
-        </div>
+        </section>
       )}
 
-      {/* Vue coloc : qui a répondu quoi */}
-      {!isProprietaire && needsResponse && responses.length > 0 && (
-        <div>
-          <h2 className="eyebrow mb-3">Disponibilités</h2>
-          <div className="flex flex-col gap-2">
-            {responses.filter((r) => r.answer).map((r) => (
-              <div key={r.userId}
-                className="flex items-center gap-3 rounded-xl border border-[var(--color-hairline)]
-                  bg-[var(--color-raised)] px-4 py-2.5">
-                <div
-                  className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-[10px] font-bold text-white"
-                  style={{ backgroundColor: r.color }}
-                >
-                  {r.displayName.slice(0, 2).toUpperCase()}
-                </div>
-                <span className="flex-1 text-sm text-[var(--color-text-main)]">{r.displayName}</span>
-                {r.answer === "DISPONIBLE" && <span className="text-xs text-[var(--color-ok)]">✓ Dispo</span>}
-                {r.answer === "PAS_DISPONIBLE" && <span className="text-xs text-red-400">✗ Pas dispo</span>}
-              </div>
-            ))}
-          </div>
-        </div>
+      {isProprietaire && (
+        archived ? (
+          <p className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
+            <Archive className="h-4 w-4" /> Annonce archivée.
+          </p>
+        ) : (
+          <button onClick={handleArchive} disabled={isPending} className="btn btn-secondary w-fit">
+            <Archive className="h-4 w-4" />
+            Archiver l'annonce
+          </button>
+        )
       )}
     </div>
   );

@@ -1,9 +1,12 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import { Brush, Sparkles } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getChoreSchedule, getWeekStart } from "@/lib/chores";
+import { ABSENCE_MIN_DAYS, isAbsentForWeek } from "@/lib/chores-utils";
+import { PageHeader } from "@/components/ui";
 import { ChoreWeekCard, type AssignmentRow, type ColocOption } from "./ChoreWeekCard";
+import { AbsencesPanel } from "./AbsencesPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -11,21 +14,33 @@ export default async function MenagePage() {
   const session = await auth();
   if (!session?.user) redirect("/connexion");
 
-  const { id: currentUserId, householdId } = session.user;
+  const { id: currentUserId, householdId, role } = session.user;
 
-  // Récupère le planning (crée les assignments manquants si nécessaire)
   const assignments = await getChoreSchedule(householdId);
 
-  // Tous les colocs (hors propriétaire) pour les options d'échange
-  const allColocs = await prisma.user.findMany({
-    where: { householdId, role: { not: "PROPRIETAIRE" } },
-    select: { id: true, displayName: true, color: true },
-    orderBy: { rotationOrder: "asc" },
-  });
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  const [allColocs, absences] = await Promise.all([
+    prisma.user.findMany({
+      where: { householdId, role: { not: "PROPRIETAIRE" } },
+      select: { id: true, displayName: true, color: true },
+      orderBy: { rotationOrder: "asc" },
+    }),
+    prisma.absence.findMany({
+      where: { user: { householdId }, endDate: { gte: today } },
+      include: { user: { select: { id: true, displayName: true, color: true } } },
+      orderBy: { startDate: "asc" },
+    }),
+  ]);
+
+  const absentNamesForWeek = (weekStart: Date) =>
+    allColocs
+      .filter((c) => isAbsentForWeek(weekStart, absences.filter((a) => a.userId === c.id)))
+      .map((c) => (c.id === currentUserId ? "toi" : c.displayName));
 
   const currentWeekStart = getWeekStart();
 
-  // Construit les ColocOptions : pour chaque coloc, trouve son assignment dans le planning
   const colocOptions: ColocOption[] = allColocs
     .filter((c) => c.id !== currentUserId)
     .map((c) => ({
@@ -34,77 +49,69 @@ export default async function MenagePage() {
     }));
 
   const rows = assignments as unknown as AssignmentRow[];
-
-  // Stat résumé
-  const myAssignment = rows.find((a) => a.user.id === currentUserId);
+  const current = rows.find((a) => a.weekStart.getTime() === currentWeekStart.getTime());
+  const upcoming = rows.filter((a) => a.weekStart.getTime() !== currentWeekStart.getTime());
+  const myTurnTodo = current?.user.id === currentUserId && current.status === "TODO";
 
   return (
-    <div className="min-h-screen bg-[var(--color-midnight)]">
-      {/* Header — mobile uniquement */}
-      <header className="lg:hidden sticky top-0 z-10 border-b border-[var(--color-hairline)] bg-[var(--color-glass-strong)] backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-2xl items-center gap-3 px-4">
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-[var(--color-text-muted)]
-              transition-colors hover:bg-[var(--color-raised)] hover:text-[var(--color-text-main)]"
-          >
-            ← Accueil
-          </Link>
-          <div className="h-4 w-px bg-[var(--color-hairline-strong)]" />
-          <span className="eyebrow">Ménage</span>
-        </div>
-      </header>
+    <>
+      <PageHeader
+        icon={Brush}
+        title="Ménage"
+        description="Balai et serpillière des espaces communs. Rotation chaque samedi."
+      />
 
-      <main className="mx-auto max-w-2xl animate-rise px-4 py-8">
-        {/* Titre */}
-        <div className="mb-6">
-          <h1 className="font-serif text-2xl font-bold text-[var(--color-text-main)]">
-            Planning ménage
-          </h1>
-          <p className="mt-1.5 text-sm text-[var(--color-text-muted)]">
-            Balai & serpillière des espaces communs — rotation sur 4 semaines, du samedi au vendredi.
+      {myTurnTodo && (
+        <div className="mb-6 flex items-center gap-3 rounded-2xl border border-[var(--color-mauve)]/30 bg-[var(--color-mauve)]/10 px-5 py-4">
+          <Sparkles className="h-5 w-5 flex-shrink-0 text-[var(--color-mauve-text)]" />
+          <p className="text-sm text-[var(--color-text-main)]">
+            <span className="font-medium">C'est ton tour cette semaine.</span>{" "}
+            <span className="text-[var(--color-text-muted)]">Pense à valider une fois le ménage fait.</span>
           </p>
         </div>
+      )}
 
-        {/* Bannière ma semaine */}
-        {myAssignment && myAssignment.status === "TODO" &&
-          myAssignment.weekStart.getTime() === currentWeekStart.getTime() && (
-          <div className="mb-6 flex items-center gap-3 rounded-2xl border border-[var(--color-mauve)]/30
-            bg-[var(--color-mauve)]/10 px-5 py-4">
-            <span className="text-2xl">🧹</span>
-            <div>
-              <p className="font-semibold text-[var(--color-text-main)]">C'est ton tour cette semaine !</p>
-              <p className="text-sm text-[var(--color-text-muted)]">
-                Pense à valider après avoir passé le balai.
-              </p>
-            </div>
-          </div>
+      <div className="grid gap-6 lg:grid-cols-5">
+        {current && (
+          <section className="lg:col-span-3">
+            <h2 className="eyebrow mb-3">Cette semaine</h2>
+            <ChoreWeekCard
+              assignment={current}
+              isCurrent
+              isMyWeek={current.user.id === currentUserId}
+              currentUserId={currentUserId}
+              colocs={colocOptions}
+              absentNames={absentNamesForWeek(current.weekStart)}
+            />
+          </section>
         )}
 
-        {/* Planning */}
-        <div className="flex flex-col gap-4">
-          {rows.map((assignment) => {
-            const isCurrent = assignment.weekStart.getTime() === currentWeekStart.getTime();
-            const isMyWeek = assignment.user.id === currentUserId;
-
-            return (
+        <section className={current ? "lg:col-span-2" : "lg:col-span-5"}>
+          <h2 className="eyebrow mb-3">À venir</h2>
+          <div className="flex flex-col gap-3">
+            {upcoming.map((assignment) => (
               <ChoreWeekCard
                 key={assignment.id}
                 assignment={assignment}
-                isCurrent={isCurrent}
-                isMyWeek={isMyWeek}
+                isCurrent={false}
+                isMyWeek={assignment.user.id === currentUserId}
                 currentUserId={currentUserId}
                 colocs={colocOptions}
+                absentNames={absentNamesForWeek(assignment.weekStart)}
               />
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        </section>
+      </div>
 
-        {/* Note */}
-        <p className="mt-6 text-center text-xs text-[var(--color-text-muted)]/60">
-          Le planning se régénère automatiquement chaque semaine.
-        </p>
-      </main>
-    </div>
+      <div className="mt-10">
+        <AbsencesPanel
+          absences={absences.map((a) => ({ id: a.id, startDate: a.startDate, endDate: a.endDate, user: a.user }))}
+          currentUserId={currentUserId}
+          canDeclare={role !== "PROPRIETAIRE"}
+          minDays={ABSENCE_MIN_DAYS}
+        />
+      </div>
+    </>
   );
 }

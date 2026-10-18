@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Ménage, liste, projets et discussions pour la coloc",
     start_url: "/",
     display: "standalone",
-    background_color: "#13111c",
-    theme_color: "#13111c",
+    background_color: "#110f18",
+    theme_color: "#110f18",
     orientation: "portrait-primary",
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

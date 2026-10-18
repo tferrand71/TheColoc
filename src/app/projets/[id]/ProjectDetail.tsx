@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
+import { Check, Lightbulb, Loader, MessageSquare, Plus, Send, CircleCheck } from "lucide-react";
 import { addProjectItem, markProjectItemDone, addComment, setProjectStatus } from "../actions";
+import { Avatar, SectionTitle } from "@/components/ui";
 
 export interface ProjectItemRow {
   id: string;
@@ -18,28 +20,17 @@ export interface CommentRow {
 
 type ProjectStatus = "IDEA" | "IN_PROGRESS" | "DONE";
 
-const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
-  { value: "IDEA", label: "Idée" },
-  { value: "IN_PROGRESS", label: "En cours" },
-  { value: "DONE", label: "Terminé" },
-];
+const STATUS_OPTIONS = [
+  { value: "IDEA", label: "Idée", icon: Lightbulb },
+  { value: "IN_PROGRESS", label: "En cours", icon: Loader },
+  { value: "DONE", label: "Terminé", icon: CircleCheck },
+] as const;
 
-const STATUS_COLOR: Record<ProjectStatus, string> = {
-  IDEA:        "text-[var(--color-mauve-text)]",
-  IN_PROGRESS: "text-[var(--color-warn)]",
-  DONE:        "text-[var(--color-ok)]",
+const STATUS_ACTIVE: Record<ProjectStatus, string> = {
+  IDEA:        "bg-[var(--color-mauve)]/15 text-[var(--color-mauve-text)] ring-[var(--color-mauve)]/30",
+  IN_PROGRESS: "bg-[var(--color-pink)]/15 text-[var(--color-pink-text)] ring-[var(--color-pink)]/30",
+  DONE:        "bg-[var(--color-ok)]/15 text-[var(--color-ok)] ring-[var(--color-ok)]/30",
 };
-
-function Avatar({ displayName, color }: { displayName: string; color: string }) {
-  return (
-    <div
-      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
-      style={{ backgroundColor: color }}
-    >
-      {displayName.slice(0, 2).toUpperCase()}
-    </div>
-  );
-}
 
 function ItemsList({ projectId, initialItems }: { projectId: string; initialItems: ProjectItemRow[] }) {
   const [items, setItems] = useState(initialItems);
@@ -68,61 +59,65 @@ function ItemsList({ projectId, initialItems }: { projectId: string; initialItem
   const done = items.filter((i) => i.boughtAt);
 
   return (
-    <div className="flex flex-col gap-3">
-      <form onSubmit={handleAdd} className="flex gap-2">
+    <div className="card overflow-hidden">
+      <form onSubmit={handleAdd} className="flex gap-2 border-b border-[var(--color-hairline)] p-2">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ajouter un item…"
-          className="flex-1 rounded-xl border border-[var(--color-hairline-strong)] bg-[var(--color-raised)]
-            px-3 py-2 text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
-            outline-none focus:border-[var(--color-mauve)] focus:ring-1 focus:ring-[var(--color-mauve)]"
+          placeholder="Ajouter une tâche ou un achat…"
+          className="min-w-0 flex-1 bg-transparent px-3 text-sm text-[var(--color-text-main)] placeholder:text-[var(--color-text-faint)] outline-none"
         />
-        <button
-          type="submit"
-          disabled={isPending || !input.trim()}
-          className="rounded-xl bg-[var(--color-mauve)] px-3 py-2 text-sm font-semibold text-white
-            transition hover:bg-[#7c3aed] disabled:opacity-40"
-        >
-          +
+        <button type="submit" disabled={isPending || !input.trim()} className="btn btn-secondary btn-sm" aria-label="Ajouter">
+          <Plus className="h-4 w-4" />
         </button>
       </form>
 
-      {active.length === 0 && done.length === 0 && (
-        <p className="py-4 text-center text-sm text-[var(--color-text-muted)]">Pas encore d'items.</p>
+      {items.length === 0 && (
+        <p className="px-5 py-8 text-center text-sm text-[var(--color-text-muted)]">Aucune tâche pour l'instant.</p>
       )}
 
-      <div className="flex flex-col gap-1.5">
+      <ul className="divide-y divide-[var(--color-hairline)]">
         {active.map((item) => (
-          <div key={item.id} className="flex items-center gap-3 rounded-xl border
-            border-[var(--color-hairline)] bg-[var(--color-raised)] px-3 py-2.5">
+          <li key={item.id} className="flex items-center gap-3 px-4 py-3">
             <button
               onClick={() => handleDone(item.id)}
-              className="flex h-4 w-4 flex-shrink-0 rounded-full border-2 border-[var(--color-hairline-strong)]
-                transition-colors hover:border-[var(--color-ok)] hover:bg-[var(--color-ok)]/10"
-            />
+              className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border border-[var(--color-hairline-strong)] text-transparent transition-colors hover:border-[var(--color-ok)] hover:bg-[var(--color-ok)]/15 hover:text-[var(--color-ok)]"
+              aria-label={`Marquer « ${item.name} » comme fait`}
+            >
+              <Check className="h-3.5 w-3.5" />
+            </button>
             <span className="text-sm text-[var(--color-text-main)]">{item.name}</span>
-          </div>
+          </li>
         ))}
         {done.map((item) => (
-          <div key={item.id} className="flex items-center gap-3 rounded-xl px-3 py-2 opacity-40">
-            <span className="text-xs text-[var(--color-ok)]">✓</span>
-            <span className="text-sm line-through text-[var(--color-text-muted)]">{item.name}</span>
-          </div>
+          <li key={item.id} className="flex items-center gap-3 px-4 py-3">
+            <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-[var(--color-ok)]/15 text-[var(--color-ok)]">
+              <Check className="h-3.5 w-3.5" />
+            </span>
+            <span className="text-sm text-[var(--color-text-faint)] line-through">{item.name}</span>
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 }
 
-function CommentSection({ projectId, initialComments }: { projectId: string; initialComments: CommentRow[] }) {
+function CommentSection({
+  projectId,
+  initialComments,
+  me,
+}: {
+  projectId: string;
+  initialComments: CommentRow[];
+  me: { displayName: string; color: string };
+}) {
   const [comments, setComments] = useState(initialComments);
   const [body, setBody] = useState("");
   const [isPending, startTransition] = useTransition();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function handleSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
     const val = body.trim();
     if (!val) return;
     startTransition(async () => {
@@ -130,12 +125,7 @@ function CommentSection({ projectId, initialComments }: { projectId: string; ini
       if (res.ok) {
         setComments((prev) => [
           ...prev,
-          {
-            id: crypto.randomUUID(),
-            body: val,
-            createdAt: new Date(),
-            author: { displayName: "Toi", color: "#6366f1" },
-          },
+          { id: crypto.randomUUID(), body: val, createdAt: new Date(), author: me },
         ]);
         setBody("");
         textareaRef.current?.focus();
@@ -144,47 +134,41 @@ function CommentSection({ projectId, initialComments }: { projectId: string; ini
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {comments.length === 0 && (
-        <p className="text-sm text-[var(--color-text-muted)]">Pas encore de commentaires.</p>
-      )}
-
-      <div className="flex flex-col gap-3">
+    <div className="card flex flex-col">
+      <div className="flex flex-col gap-5 p-5">
+        {comments.length === 0 && (
+          <p className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
+            <MessageSquare className="h-4 w-4" /> Pas encore de commentaire.
+          </p>
+        )}
         {comments.map((c) => (
           <div key={c.id} className="flex gap-3">
-            <Avatar displayName={c.author.displayName} color={c.author.color} />
-            <div className="flex-1 min-w-0">
+            <Avatar name={c.author.displayName} color={c.author.color} size="sm" />
+            <div className="min-w-0 flex-1">
               <div className="flex items-baseline gap-2">
-                <span className="text-xs font-semibold text-[var(--color-text-main)]">{c.author.displayName}</span>
-                <span className="text-xs text-[var(--color-text-muted)]">
+                <span className="text-sm font-medium text-[var(--color-text-main)]">{c.author.displayName}</span>
+                <span className="text-[11px] text-[var(--color-text-faint)]">
                   {new Date(c.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                 </span>
               </div>
-              <p className="mt-0.5 text-sm text-[var(--color-text-main)]">{c.body}</p>
+              <p className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-[var(--color-text-muted)]">{c.body}</p>
             </div>
           </div>
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+      <form onSubmit={handleSubmit} className="flex items-end gap-2 border-t border-[var(--color-hairline)] p-3">
         <textarea
           ref={textareaRef}
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e as unknown as React.FormEvent); } }}
-          rows={2}
-          placeholder="Ajouter un commentaire… (Entrée pour envoyer)"
-          className="w-full resize-none rounded-xl border border-[var(--color-hairline-strong)] bg-[var(--color-raised)]
-            px-3 py-2.5 text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
-            outline-none focus:border-[var(--color-mauve)] focus:ring-1 focus:ring-[var(--color-mauve)]"
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
+          rows={1}
+          placeholder="Écrire un commentaire…"
+          className="input resize-none"
         />
-        <button
-          type="submit"
-          disabled={isPending || !body.trim()}
-          className="self-end rounded-xl bg-[var(--color-mauve)] px-4 py-1.5 text-sm font-semibold text-white
-            transition hover:bg-[#7c3aed] disabled:opacity-40"
-        >
-          {isPending ? "Envoi…" : "Commenter"}
+        <button type="submit" disabled={isPending || !body.trim()} className="btn btn-primary px-3" aria-label="Envoyer">
+          <Send className="h-4 w-4" />
         </button>
       </form>
     </div>
@@ -196,11 +180,13 @@ export function ProjectDetail({
   status: initialStatus,
   items,
   comments,
+  me,
 }: {
   projectId: string;
   status: ProjectStatus;
   items: ProjectItemRow[];
   comments: CommentRow[];
+  me: { displayName: string; color: string };
 }) {
   const [status, setStatus] = useState(initialStatus);
   const [isPending, startTransition] = useTransition();
@@ -211,38 +197,38 @@ export function ProjectDetail({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Sélecteur de statut */}
-      <div className="flex gap-2">
-        {STATUS_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() => handleStatusChange(opt.value)}
-            disabled={isPending}
-            className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors
-              ${status === opt.value
-                ? `border-current ${STATUS_COLOR[opt.value]} bg-current/10`
-                : "border-[var(--color-hairline-strong)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]"
-              }`}
-          >
-            {opt.label}
-          </button>
-        ))}
+    <div className="flex flex-col gap-8">
+      <div className="inline-flex w-fit gap-1 rounded-xl border border-[var(--color-hairline)] bg-[var(--color-raised)] p-1">
+        {STATUS_OPTIONS.map((opt) => {
+          const Icon = opt.icon;
+          const active = status === opt.value;
+          return (
+            <button
+              key={opt.value}
+              onClick={() => handleStatusChange(opt.value)}
+              disabled={isPending}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors
+                ${active
+                  ? `ring-1 ring-inset ${STATUS_ACTIVE[opt.value]}`
+                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]"
+                }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {opt.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Layout desktop : 2 colonnes */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Items */}
-        <div className="flex flex-col gap-3">
-          <h2 className="eyebrow">Items</h2>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section>
+          <SectionTitle title="Tâches et achats" count={items.length} />
           <ItemsList projectId={projectId} initialItems={items} />
-        </div>
-
-        {/* Commentaires */}
-        <div className="flex flex-col gap-3">
-          <h2 className="eyebrow">Discussion</h2>
-          <CommentSection projectId={projectId} initialComments={comments} />
-        </div>
+        </section>
+        <section>
+          <SectionTitle title="Discussion" count={comments.length} />
+          <CommentSection projectId={projectId} initialComments={comments} me={me} />
+        </section>
       </div>
     </div>
   );

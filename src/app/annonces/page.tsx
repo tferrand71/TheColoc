@@ -1,18 +1,13 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Archive, CalendarDays, ChevronRight, Inbox, Megaphone } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { EmptyState, PageHeader, SectionTitle } from "@/components/ui";
 import { CreateAnnouncementForm } from "./CreateAnnouncementForm";
+import { ANNOUNCEMENT_TYPES } from "./types";
 
 export const dynamic = "force-dynamic";
-
-const TYPE_CONFIG = {
-  REUNION:     { label: "Réunion",     icon: "📅" },
-  VISITE:      { label: "Visite",      icon: "🚪" },
-  TRAVAUX:     { label: "Travaux",     icon: "🔨" },
-  INFORMATION: { label: "Information", icon: "ℹ️" },
-  AUTRE:       { label: "Autre",       icon: "📌" },
-} as const;
 
 export default async function AnnoncesPage() {
   const session = await auth();
@@ -25,9 +20,7 @@ export default async function AnnoncesPage() {
     where: { householdId },
     include: {
       author: { select: { displayName: true, color: true } },
-      responses: {
-        select: { userId: true, answer: true, readAt: true },
-      },
+      responses: { select: { userId: true, answer: true, readAt: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -36,99 +29,89 @@ export default async function AnnoncesPage() {
   const archived = announcements.filter((a) => a.archivedAt);
 
   return (
-    <div className="min-h-screen bg-[var(--color-midnight)]">
-      <header className="lg:hidden sticky top-0 z-10 border-b border-[var(--color-hairline)] bg-[var(--color-glass-strong)] backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-2xl items-center gap-3 px-4">
-          <Link href="/"
-            className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-[var(--color-text-muted)]
-              transition-colors hover:bg-[var(--color-raised)] hover:text-[var(--color-text-main)]">
-            ← Accueil
-          </Link>
-          <div className="h-4 w-px bg-[var(--color-hairline-strong)]" />
-          <span className="eyebrow">Annonces</span>
-        </div>
-      </header>
+    <div className="mx-auto max-w-3xl">
+      <PageHeader
+        icon={Megaphone}
+        title="Annonces"
+        description={isProprietaire ? "Tes messages aux colocataires." : "Les messages du propriétaire."}
+        actions={isProprietaire ? <CreateAnnouncementForm /> : undefined}
+      />
 
-      <main className="mx-auto max-w-2xl animate-rise px-4 py-8">
-        <div className="mb-6">
-          <h1 className="font-serif text-2xl font-bold text-[var(--color-text-main)]">Annonces</h1>
-          <p className="mt-1.5 text-sm text-[var(--color-text-muted)]">
-            {isProprietaire ? "Tes messages aux colocs." : "Messages du propriétaire."}
-          </p>
-        </div>
+      {active.length === 0 && (
+        <EmptyState
+          icon={Inbox}
+          title="Aucune annonce en cours"
+          description={isProprietaire ? "Publie une annonce pour prévenir les colocs d'une visite, de travaux…" : "Tu seras prévenu dès que le propriétaire publie quelque chose."}
+        />
+      )}
 
-        {isProprietaire && <CreateAnnouncementForm />}
+      {active.length > 0 && (
+        <section>
+          <SectionTitle title="En cours" count={active.length} />
+          <div className="flex flex-col gap-3">
+            {active.map((ann) => {
+              const type = ANNOUNCEMENT_TYPES[ann.type];
+              const Icon = type.icon;
+              const myResponse = ann.responses.find((r) => r.userId === userId);
+              const unread = !isProprietaire && !myResponse?.readAt;
+              const readCount = ann.responses.filter((r) => r.readAt).length;
+              const respondedCount = ann.responses.filter((r) => r.answer).length;
 
-        {active.length === 0 && !isProprietaire && (
-          <div className="rounded-2xl border border-[var(--color-hairline)] bg-[var(--color-raised)] px-5 py-10 text-center">
-            <p className="text-3xl">📭</p>
-            <p className="mt-3 font-medium text-[var(--color-text-main)]">Aucune annonce en cours</p>
-          </div>
-        )}
-
-        <div className="mt-6 flex flex-col gap-3">
-          {active.map((ann) => {
-            const cfg = TYPE_CONFIG[ann.type];
-            const myResponse = ann.responses.find((r) => r.userId === userId);
-            const readCount = ann.responses.filter((r) => r.readAt).length;
-            const respondedCount = ann.responses.filter((r) => r.answer).length;
-
-            return (
-              <Link key={ann.id} href={`/annonces/${ann.id}`}
-                className="flex items-start gap-4 rounded-2xl border border-[var(--color-hairline)]
-                  bg-[var(--color-raised)] p-5 transition-all
-                  hover:border-[var(--color-hairline-strong)] hover:bg-[var(--color-glass)]">
-                <span className="text-2xl">{cfg.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold text-[var(--color-text-main)]">{ann.title}</span>
-                    <span className="rounded-full border border-[var(--color-hairline-strong)]
-                      px-2 py-0.5 text-[10px] text-[var(--color-text-muted)]">
-                      {cfg.label}
-                    </span>
-                    {!myResponse?.readAt && !isProprietaire && (
-                      <span className="h-2 w-2 rounded-full bg-[var(--color-mauve)]" />
-                    )}
+              return (
+                <Link key={ann.id} href={`/annonces/${ann.id}`} className="card-interactive group flex items-start gap-4 p-5">
+                  <div className="icon-tile">
+                    <Icon className="h-5 w-5" />
                   </div>
-                  {ann.eventAt && (
-                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                      📅 {ann.eventAt.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
-                    </p>
-                  )}
-                  {isProprietaire && (
-                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                      {readCount} lu · {respondedCount} réponse{respondedCount !== 1 ? "s" : ""}
-                    </p>
-                  )}
-                  {!isProprietaire && myResponse?.answer && (
-                    <p className={`mt-1 text-xs font-medium ${myResponse.answer === "DISPONIBLE" ? "text-[var(--color-ok)]" : "text-red-400"}`}>
-                      {myResponse.answer === "DISPONIBLE" ? "✓ Disponible" : "✗ Pas disponible"}
-                    </p>
-                  )}
-                </div>
-                <span className="text-[var(--color-text-muted)]">→</span>
-              </Link>
-            );
-          })}
-        </div>
-
-        {archived.length > 0 && (
-          <section className="mt-8">
-            <h2 className="eyebrow mb-3">Archivées</h2>
-            <div className="flex flex-col gap-2">
-              {archived.map((ann) => (
-                <Link key={ann.id} href={`/annonces/${ann.id}`}
-                  className="flex items-center gap-3 rounded-xl border border-[var(--color-hairline)]
-                    px-4 py-3 opacity-50 hover:opacity-70 transition-opacity">
-                  <span className="text-sm">{TYPE_CONFIG[ann.type].icon}</span>
-                  <span className="flex-1 text-sm text-[var(--color-text-muted)]">{ann.title}</span>
-                  <span className="text-xs text-[var(--color-text-muted)]">→</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-[var(--color-text-main)]">{ann.title}</span>
+                      <span className="badge-neutral">{type.label}</span>
+                      {unread && <span className="badge-pink">Nouveau</span>}
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-sm text-[var(--color-text-muted)]">{ann.body}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--color-text-muted)]">
+                      {ann.eventAt && (
+                        <span className="flex items-center gap-1.5 capitalize">
+                          <CalendarDays className="h-3.5 w-3.5" />
+                          {ann.eventAt.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+                        </span>
+                      )}
+                      {isProprietaire && (
+                        <span>{readCount} lu{readCount > 1 ? "s" : ""} · {respondedCount} réponse{respondedCount > 1 ? "s" : ""}</span>
+                      )}
+                      {!isProprietaire && myResponse?.answer && (
+                        <span className={myResponse.answer === "DISPONIBLE" ? "text-[var(--color-ok)]" : "text-[var(--color-down)]"}>
+                          {myResponse.answer === "DISPONIBLE" ? "Tu es disponible" : "Tu n'es pas disponible"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <ChevronRight className="mt-2 h-4 w-4 text-[var(--color-text-faint)] transition-transform group-hover:translate-x-0.5" />
                 </Link>
-              ))}
-            </div>
-          </section>
-        )}
-      </main>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {archived.length > 0 && (
+        <section className="mt-10">
+          <SectionTitle title="Archivées" count={archived.length} />
+          <div className="card divide-y divide-[var(--color-hairline)]">
+            {archived.map((ann) => (
+              <Link
+                key={ann.id}
+                href={`/annonces/${ann.id}`}
+                className="flex items-center gap-3 px-5 py-3 text-sm text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface)]/50 hover:text-[var(--color-text-main)]"
+              >
+                <Archive className="h-4 w-4 text-[var(--color-text-faint)]" />
+                <span className="flex-1">{ann.title}</span>
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

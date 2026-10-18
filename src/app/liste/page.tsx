@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import { ShoppingBasket } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/ui";
 import { ListeClient, type ListItemRow, type ColocRow } from "./ListeClient";
 
 export const dynamic = "force-dynamic";
@@ -40,33 +41,13 @@ export default async function ListePage() {
   const colocRows: ColocRow[] = colocs;
 
   return (
-    <div className="min-h-screen bg-[var(--color-midnight)]">
-      <header className="lg:hidden sticky top-0 z-10 border-b border-[var(--color-hairline)] bg-[var(--color-glass-strong)] backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-2xl items-center gap-3 px-4">
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-[var(--color-text-muted)]
-              transition-colors hover:bg-[var(--color-raised)] hover:text-[var(--color-text-main)]"
-          >
-            ← Accueil
-          </Link>
-          <div className="h-4 w-px bg-[var(--color-hairline-strong)]" />
-          <span className="eyebrow">Liste partagée</span>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-2xl animate-rise px-4 py-8">
-        <div className="mb-6">
-          <h1 className="font-serif text-2xl font-bold text-[var(--color-text-main)]">
-            Consommables communs
-          </h1>
-          <p className="mt-1.5 text-sm text-[var(--color-text-muted)]">
-            PQ, liquide vaisselle, éponges… Ce qui manque pour tout le monde.
-          </p>
-        </div>
-
-        <ListeClient items={rows} colocs={colocRows} currentUserId={currentUserId} />
-      </main>
+    <div className="mx-auto max-w-3xl">
+      <PageHeader
+        icon={ShoppingBasket}
+        title="Courses"
+        description="Les consommables communs qui manquent : PQ, liquide vaisselle, éponges…"
+      />
+      <ListeClient items={rows} colocs={colocRows} currentUserId={currentUserId} />
     </div>
   );
 }

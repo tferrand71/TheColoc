@@ -3,6 +3,8 @@ import withSerwist from "@serwist/next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Dev sous Turbopack (Serwist y est désactivé) ; le build de prod passe par --webpack
+  turbopack: {},
 };
 
 export default withSerwist({

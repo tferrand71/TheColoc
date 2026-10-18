@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BellOff, BellRing, CircleCheck, Smartphone } from "lucide-react";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
 
@@ -13,8 +14,10 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   return output.buffer as ArrayBuffer;
 }
 
-export function PushManager({ choresEnabled }: { choresEnabled: boolean }) {
-  const [status, setStatus] = useState<"idle" | "subscribed" | "denied" | "unsupported">("idle");
+type Status = "idle" | "subscribed" | "denied" | "unsupported";
+
+export function PushManager() {
+  const [status, setStatus] = useState<Status>("idle");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -22,12 +25,18 @@ export function PushManager({ choresEnabled }: { choresEnabled: boolean }) {
       setStatus("unsupported");
       return;
     }
-    if (Notification.permission === "denied") setStatus("denied");
-    else if (Notification.permission === "granted") setStatus("subscribed");
+    if (Notification.permission === "denied") {
+      setStatus("denied");
+      return;
+    }
+    // Permission accordée ne suffit pas : il faut un abonnement enregistré sur cet appareil
+    navigator.serviceWorker.getRegistration().then(async (reg) => {
+      const sub = await reg?.pushManager.getSubscription();
+      if (sub) setStatus("subscribed");
+    });
   }, []);
 
   async function subscribe() {
-    if (!("serviceWorker" in navigator)) return;
     setLoading(true);
     try {
       const permission = await Notification.requestPermission();
@@ -42,15 +51,12 @@ export function PushManager({ choresEnabled }: { choresEnabled: boolean }) {
       const res = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subscription: sub.toJSON(),
-          userAgent: navigator.userAgent,
-        }),
+        body: JSON.stringify({ subscription: sub.toJSON(), userAgent: navigator.userAgent }),
       });
 
       if (res.ok) setStatus("subscribed");
     } catch {
-      // permission refusée ou erreur SW
+      // permission refusée ou service worker indisponible
     } finally {
       setLoading(false);
     }
@@ -58,43 +64,35 @@ export function PushManager({ choresEnabled }: { choresEnabled: boolean }) {
 
   if (status === "unsupported") {
     return (
-      <div className="rounded-xl border border-[var(--color-hairline)] bg-[var(--color-raised)] px-4 py-3">
-        <p className="text-sm text-[var(--color-text-muted)]">
-          Les notifications ne sont pas supportées sur ce navigateur.
-          {" "}Sur iPhone, ajoute l'app à l'écran d'accueil d'abord.
-        </p>
-      </div>
+      <p className="flex items-start gap-2.5 rounded-xl bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text-muted)]">
+        <Smartphone className="mt-0.5 h-4 w-4 flex-shrink-0" />
+        Ce navigateur ne gère pas les notifications. Sur iPhone, ajoute d'abord l'app à l'écran d'accueil.
+      </p>
     );
   }
 
   if (status === "denied") {
     return (
-      <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3">
-        <p className="text-sm text-red-400">
-          Notifications bloquées. Autorise-les dans les réglages du navigateur.
-        </p>
-      </div>
+      <p className="flex items-start gap-2.5 rounded-xl bg-[var(--color-down)]/10 px-4 py-3 text-sm text-[var(--color-down)]">
+        <BellOff className="mt-0.5 h-4 w-4 flex-shrink-0" />
+        Notifications bloquées. Autorise-les dans les réglages du navigateur.
+      </p>
     );
   }
 
   if (status === "subscribed") {
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-[var(--color-ok)]/20
-        bg-[var(--color-ok)]/5 px-4 py-3">
-        <span className="text-[var(--color-ok)]">✓</span>
-        <p className="text-sm text-[var(--color-ok)]">Notifications activées sur cet appareil.</p>
-      </div>
+      <p className="flex items-center gap-2.5 rounded-xl bg-[var(--color-ok)]/10 px-4 py-3 text-sm text-[var(--color-ok)]">
+        <CircleCheck className="h-4 w-4" />
+        Notifications activées sur cet appareil.
+      </p>
     );
   }
 
   return (
-    <button
-      onClick={subscribe}
-      disabled={loading}
-      className="w-full rounded-xl bg-[var(--color-mauve)] px-4 py-3 text-sm font-semibold text-white
-        transition hover:bg-[#7c3aed] disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {loading ? "Activation…" : "Activer les notifications push"}
+    <button onClick={subscribe} disabled={loading} className="btn btn-primary w-full sm:w-fit">
+      <BellRing className="h-4 w-4" />
+      {loading ? "Activation…" : "Activer les notifications sur cet appareil"}
     </button>
   );
 }

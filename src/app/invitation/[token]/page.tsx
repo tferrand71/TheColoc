@@ -1,4 +1,7 @@
+import { Lock } from "lucide-react";
 import { findInvitationByToken } from "@/lib/invitation";
+import { AuthLayout } from "@/components/AuthLayout";
+import { Avatar } from "@/components/ui";
 import { InvitationForm } from "./InvitationForm";
 
 interface Props {
@@ -18,51 +21,35 @@ export default async function InvitationPage({ params }: Props) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--color-midnight)] px-4 py-12">
-      <div className="w-full max-w-sm animate-rise">
-        {/* Avatar + titre */}
-        <div className="mb-8 text-center">
-          <div
-            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl text-xl font-bold text-white shadow-lg"
-            style={{
-              backgroundColor: invitation.user.color,
-              boxShadow: `0 8px 32px -8px ${invitation.user.color}80`,
-            }}
-          >
-            {invitation.user.displayName.slice(0, 2).toUpperCase()}
-          </div>
-          <h1 className="font-serif text-2xl font-bold text-[var(--color-text-main)]">
-            Bienvenue, {invitation.user.displayName} !
-          </h1>
-          <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-            Choisis ton identifiant et crée ton mot de passe.
-          </p>
-        </div>
+    <AuthLayout>
+      <Avatar name={invitation.user.displayName} color={invitation.user.color} size="xl" />
+      <h1 className="mt-5 text-2xl font-semibold tracking-tight text-[var(--color-text-main)]">
+        Bienvenue, {invitation.user.displayName}
+      </h1>
+      <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+        Choisis ton identifiant et ton mot de passe pour activer ton compte.
+      </p>
 
-        {/* Formulaire */}
-        <div className="glass-panel rounded-2xl p-6 shadow-2xl">
-          <InvitationForm token={token} displayName={invitation.user.displayName} />
-        </div>
-
-        <p className="mt-5 text-center text-xs text-[var(--color-text-muted)]/60">
-          Lien à usage unique · expire le{" "}
-          {invitation.expiresAt.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}
-        </p>
+      <div className="mt-8">
+        <InvitationForm token={token} />
       </div>
-    </div>
+
+      <p className="mt-6 text-xs text-[var(--color-text-faint)]">
+        Lien à usage unique, valable jusqu'au{" "}
+        {invitation.expiresAt.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}.
+      </p>
+    </AuthLayout>
   );
 }
 
 function InvitationError({ message }: { message: string }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--color-midnight)] px-4">
-      <div className="w-full max-w-sm animate-rise text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/10 text-3xl border border-red-500/20">
-          🔒
-        </div>
-        <h1 className="text-xl font-semibold text-[var(--color-text-main)]">Lien invalide</h1>
-        <p className="mt-2 text-sm text-[var(--color-text-muted)]">{message}</p>
+    <AuthLayout>
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-down)]/10 text-[var(--color-down)] ring-1 ring-inset ring-[var(--color-down)]/25">
+        <Lock className="h-5 w-5" />
       </div>
-    </div>
+      <h1 className="mt-5 text-2xl font-semibold tracking-tight text-[var(--color-text-main)]">Lien invalide</h1>
+      <p className="mt-1 text-sm text-[var(--color-text-muted)]">{message}</p>
+    </AuthLayout>
   );
 }

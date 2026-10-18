@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Plus, X } from "lucide-react";
 import { createProject } from "./actions";
 
 export function CreateProjectForm() {
@@ -25,63 +26,45 @@ export function CreateProjectForm() {
     });
   }
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="w-full rounded-2xl border border-dashed border-[var(--color-hairline-strong)]
-          py-4 text-sm font-medium text-[var(--color-text-muted)] transition-colors
-          hover:border-[var(--color-mauve)]/50 hover:text-[var(--color-mauve-text)]"
-      >
-        + Nouveau projet
-      </button>
-    );
-  }
-
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-2xl border border-[var(--color-mauve)]/30 bg-[var(--color-mauve)]/5 p-5"
-    >
-      <p className="eyebrow mb-4">Nouveau projet</p>
-      <div className="flex flex-col gap-3">
-        <input
-          name="title"
-          required
-          autoFocus
-          placeholder="Titre du projet"
-          className="w-full rounded-xl border border-[var(--color-hairline-strong)] bg-[var(--color-raised)]
-            px-4 py-2.5 text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
-            outline-none focus:border-[var(--color-mauve)] focus:ring-1 focus:ring-[var(--color-mauve)]"
-        />
-        <textarea
-          name="description"
-          rows={2}
-          placeholder="Description (optionnel)"
-          className="w-full resize-none rounded-xl border border-[var(--color-hairline-strong)] bg-[var(--color-raised)]
-            px-4 py-2.5 text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
-            outline-none focus:border-[var(--color-mauve)] focus:ring-1 focus:ring-[var(--color-mauve)]"
-        />
-        {error && <p className="text-xs text-red-400">{error}</p>}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="flex-1 rounded-xl border border-[var(--color-hairline-strong)] py-2.5 text-sm
-              text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-main)]"
-          >
-            Annuler
-          </button>
-          <button
-            type="submit"
-            disabled={isPending}
-            className="flex-1 rounded-xl bg-[var(--color-mauve)] py-2.5 text-sm font-semibold text-white
-              transition hover:bg-[#7c3aed] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isPending ? "Création…" : "Créer le projet"}
-          </button>
+    <>
+      <button onClick={() => setOpen(true)} className="btn btn-primary">
+        <Plus className="h-4 w-4" />
+        Nouveau projet
+      </button>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center"
+          onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
+        >
+          <form onSubmit={handleSubmit} className="card w-full max-w-md animate-rise p-6 shadow-2xl shadow-black/60">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-lg font-semibold tracking-tight text-[var(--color-text-main)]">Nouveau projet</h2>
+              <button type="button" onClick={() => setOpen(false)} className="btn btn-ghost btn-sm" aria-label="Fermer">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-4">
+              <div>
+                <label htmlFor="title" className="label">Titre</label>
+                <input id="title" name="title" required autoFocus placeholder="Ex : Acheter un canapé" className="input" />
+              </div>
+              <div>
+                <label htmlFor="description" className="label">Description <span className="text-[var(--color-text-faint)]">(optionnel)</span></label>
+                <textarea id="description" name="description" rows={3} placeholder="Budget, idées, contraintes…" className="input resize-none" />
+              </div>
+              {error && <p className="text-xs text-[var(--color-down)]">{error}</p>}
+              <div className="flex justify-end gap-2 pt-1">
+                <button type="button" onClick={() => setOpen(false)} className="btn btn-ghost">Annuler</button>
+                <button type="submit" disabled={isPending} className="btn btn-primary">
+                  {isPending ? "Création…" : "Créer le projet"}
+                </button>
+              </div>
+            </div>
+          </form>
         </div>
-      </div>
-    </form>
+      )}
+    </>
   );
 }

@@ -1,64 +1,128 @@
 @import "tailwindcss";
 
 /* ──────────────────────────────────────────────────────────────
-   Identité visuelle « Midnight Violet » — alignée sur le
-   portfolio et le dashboard tobias-ferrand.fr.
+   Identité « Midnight Violet » : nuit, mauve, rose.
    ────────────────────────────────────────────────────────────── */
 
 @theme {
     /* Fonds */
-    --color-ink:      #07050a;
-    --color-midnight: #13111c;
-    --color-raised:   #1b1826;
-    --color-glass:            rgba(30, 27, 46, 0.45);
-    --color-glass-strong:     rgba(19, 17, 28, 0.85);
-    --color-hairline:         rgba(255, 255, 255, 0.06);
-    --color-hairline-strong:  rgba(255, 255, 255, 0.14);
+    --color-ink:      #08070c;
+    --color-midnight: #110f18;
+    --color-raised:   #18151f;
+    --color-surface:  #1e1a28;
+    --color-glass:            rgba(30, 27, 46, 0.55);
+    --color-glass-strong:     rgba(17, 15, 24, 0.82);
+    --color-hairline:         rgba(255, 255, 255, 0.07);
+    --color-hairline-strong:  rgba(255, 255, 255, 0.13);
 
     /* Texte */
-    --color-text-main:  #e2e0e9;
-    --color-text-muted: #8b8898;
+    --color-text-main:  #ecebf2;
+    --color-text-muted: #8f8b9e;
+    --color-text-faint: #5f5b6e;
 
     /* Accents */
     --color-mauve:      #8b5cf6;
-    --color-mauve-text: #a78bfa;
-    --color-gold:       #d4af37;
+    --color-mauve-strong: #7c3aed;
+    --color-mauve-text: #b4a0fb;
     --color-pink:       #ec4899;
+    --color-pink-text:  #f9a8d4;
 
     /* Statuts */
     --color-ok:   #2dd4bf;
-    --color-warn: #d4af37;
-    --color-down: #ef4444;
+    --color-warn: #f472b6;
+    --color-down: #f87171;
 
     /* Typographie */
-    --font-serif: var(--font-playfair);
     --font-sans:  var(--font-inter);
     --font-mono:  var(--font-jetbrains);
 }
 
+@layer components {
+    .card {
+        @apply rounded-2xl border border-[var(--color-hairline)] bg-[var(--color-raised)];
+    }
+    .card-interactive {
+        @apply rounded-2xl border border-[var(--color-hairline)] bg-[var(--color-raised)] transition-colors duration-150 hover:border-[var(--color-hairline-strong)] hover:bg-[var(--color-surface)];
+    }
+
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium
+            transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50;
+    }
+    .btn-sm {
+        @apply px-3 py-1.5 text-xs rounded-lg;
+    }
+    .btn-primary {
+        @apply bg-[var(--color-mauve)] text-white shadow-[0_1px_0_rgba(255,255,255,0.12)_inset,0_8px_24px_-12px_rgba(139,92,246,0.8)]
+            hover:bg-[var(--color-mauve-strong)];
+    }
+    .btn-secondary {
+        @apply border border-[var(--color-hairline-strong)] bg-[var(--color-surface)] text-[var(--color-text-main)]
+            hover:border-[var(--color-mauve)]/40 hover:bg-[var(--color-glass)];
+    }
+    .btn-ghost {
+        @apply text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-main)];
+    }
+    .btn-success {
+        @apply bg-[var(--color-ok)]/15 text-[var(--color-ok)] hover:bg-[var(--color-ok)]/25;
+    }
+    .btn-danger {
+        @apply text-[var(--color-down)] hover:bg-[var(--color-down)]/10;
+    }
+
+    .input {
+        @apply w-full rounded-xl border border-[var(--color-hairline-strong)] bg-[var(--color-ink)]/60 px-3.5 py-2.5
+            text-sm text-[var(--color-text-main)] placeholder:text-[var(--color-text-faint)] outline-none
+            transition focus:border-[var(--color-mauve)]/70 focus:ring-4 focus:ring-[var(--color-mauve)]/15;
+    }
+    .label {
+        @apply mb-1.5 block text-xs font-medium text-[var(--color-text-muted)];
+    }
+
+    .badge-neutral, .badge-mauve, .badge-pink, .badge-ok, .badge-down {
+        @apply inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium leading-4 whitespace-nowrap;
+    }
+    .badge-neutral { @apply border-[var(--color-hairline-strong)] text-[var(--color-text-muted)]; }
+    .badge-mauve   { @apply border-[var(--color-mauve)]/30 bg-[var(--color-mauve)]/10 text-[var(--color-mauve-text)]; }
+    .badge-pink    { @apply border-[var(--color-pink)]/30 bg-[var(--color-pink)]/10 text-[var(--color-pink-text)]; }
+    .badge-ok      { @apply border-[var(--color-ok)]/30 bg-[var(--color-ok)]/10 text-[var(--color-ok)]; }
+    .badge-down    { @apply border-[var(--color-down)]/30 bg-[var(--color-down)]/10 text-[var(--color-down)]; }
+
+    .eyebrow {
+        @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-faint)];
+    }
+
+    .icon-tile {
+        @apply flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl
+            bg-[var(--color-mauve)]/12 text-[var(--color-mauve-text)] ring-1 ring-inset ring-[var(--color-mauve)]/20;
+    }
+}
+
 @layer utilities {
     .text-gradient {
-        @apply bg-clip-text text-transparent bg-gradient-to-r from-[var(--color-mauve)] via-[var(--color-pink)] to-[var(--color-gold)];
+        @apply bg-clip-text text-transparent bg-gradient-to-r from-[var(--color-mauve-text)] to-[var(--color-pink)];
     }
     .glass-panel {
         @apply bg-[var(--color-glass)] backdrop-blur-xl border border-[var(--color-hairline)];
     }
-    .eyebrow {
-        @apply text-[10px] font-bold uppercase tracking-[0.3em] text-[var(--color-gold)];
-    }
 }
 
 body {
-    background-color: var(--color-midnight);
+    background:
+        radial-gradient(900px 500px at 15% -10%, rgba(139, 92, 246, 0.10), transparent 60%),
+        radial-gradient(700px 400px at 100% 0%, rgba(236, 72, 153, 0.05), transparent 60%),
+        var(--color-midnight);
+    background-attachment: fixed;
     color: var(--color-text-main);
     font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
     -webkit-font-smoothing: antialiased;
 }
 
 :focus-visible {
     outline: 2px solid var(--color-mauve-text);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: 6px;
 }
 :focus:not(:focus-visible) { outline: none; }
 
@@ -68,15 +132,15 @@ body {
 }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--color-ink); }
-::-webkit-scrollbar-thumb { background: #3f3c4d; border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2e2a3b; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-mauve); }
 
 @keyframes rise {
-    from { opacity: 0; transform: translate3d(0, 8px, 0); }
-    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+    from { opacity: 0; transform: translate3d(0, 6px, 0); }
+    to   { opacity: 1; transform: none; }
 }
-.animate-rise { animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-rise { animation: rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 @media (prefers-reduced-motion: reduce) {
     .animate-rise { animation: none; opacity: 1; transform: none; }

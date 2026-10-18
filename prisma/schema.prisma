@@ -100,6 +100,19 @@ model User {
   announcementResponses  AnnouncementResponse[]
   pushSubscriptions      PushSubscription[]
   notificationLogs       NotificationLog[]
+  absences               Absence[]
+}
+
+// Période d'absence : retire le coloc de la rotation ménage pour les semaines concernées
+model Absence {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  @@index([userId, endDate])
 }
 
 model Invitation {

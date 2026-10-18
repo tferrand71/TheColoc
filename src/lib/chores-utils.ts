@@ -44,6 +44,46 @@ export function getUserForWeek(
   return sorted[idx];
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** En dessous de 4 jours d'absence sur la semaine, le coloc garde son tour. */
+export const ABSENCE_MIN_DAYS = 4;
+
+export type AbsencePeriod = { startDate: Date; endDate: Date };
+
+/** Nombre de jours (samedi → vendredi) couverts par au moins une absence. */
+export function absentDaysInWeek(weekStart: Date, absences: AbsencePeriod[]): number {
+  let days = 0;
+  for (let i = 0; i < 7; i++) {
+    const day = weekStart.getTime() + i * DAY_MS;
+    if (absences.some((a) => a.startDate.getTime() <= day && day <= a.endDate.getTime())) days++;
+  }
+  return days;
+}
+
+export function isAbsentForWeek(weekStart: Date, absences: AbsencePeriod[]): boolean {
+  return absentDaysInWeek(weekStart, absences) >= ABSENCE_MIN_DAYS;
+}
+
+/**
+ * Coloc de la rotation pour la semaine ; s'il est absent, le suivant présent
+ * prend la semaine (pas de rattrapage). Si tout le monde est absent, la rotation normale s'applique.
+ */
+export function pickAssigneeForWeek<T extends Pick<User, "id" | "rotationOrder">>(
+  weekStart: Date,
+  colocs: T[],
+  absencesByUser: Map<string, AbsencePeriod[]>
+): T {
+  const sorted = [...colocs].sort((a, b) => (a.rotationOrder ?? 99) - (b.rotationOrder ?? 99));
+  const base = getUserForWeek(weekStart, sorted);
+  const start = sorted.findIndex((c) => c.id === base.id);
+  for (let i = 0; i < sorted.length; i++) {
+    const candidate = sorted[(start + i) % sorted.length];
+    if (!isAbsentForWeek(weekStart, absencesByUser.get(candidate.id) ?? [])) return candidate;
+  }
+  return sorted[start];
+}
+
 /** Formate une date weekStart en label lisible (ex: "18 oct. – 24 oct.") */
 export function formatWeekRange(weekStart: Date): string {
   const end = new Date(weekStart);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { ArrowRight } from "lucide-react";
 import { login, type ConnexionFormState } from "./actions";
 
 export function ConnexionForm() {
@@ -9,15 +10,13 @@ export function ConnexionForm() {
   return (
     <form action={action} className="flex flex-col gap-5">
       {state.error && (
-        <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <p role="alert" className="rounded-xl border border-[var(--color-down)]/25 bg-[var(--color-down)]/10 px-4 py-3 text-sm text-[var(--color-down)]">
           {state.error}
         </p>
       )}
 
       <div>
-        <label htmlFor="username" className="eyebrow mb-2 block">
-          Identifiant
-        </label>
+        <label htmlFor="username" className="label">Identifiant</label>
         <input
           id="username"
           name="username"
@@ -27,39 +26,32 @@ export function ConnexionForm() {
           spellCheck={false}
           required
           autoFocus
-          className="w-full rounded-xl border border-[var(--color-hairline-strong)] bg-[var(--color-raised)]
-            px-4 py-2.5 text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
-            outline-none transition focus:border-[var(--color-mauve)] focus:ring-1 focus:ring-[var(--color-mauve)]"
           placeholder="ton-identifiant"
+          className="input"
         />
       </div>
 
       <div>
-        <label htmlFor="password" className="eyebrow mb-2 block">
-          Mot de passe
-        </label>
+        <label htmlFor="password" className="label">Mot de passe</label>
         <input
           id="password"
           name="password"
           type="password"
           autoComplete="current-password"
           required
-          className="w-full rounded-xl border border-[var(--color-hairline-strong)] bg-[var(--color-raised)]
-            px-4 py-2.5 text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
-            outline-none transition focus:border-[var(--color-mauve)] focus:ring-1 focus:ring-[var(--color-mauve)]"
           placeholder="••••••••"
+          className="input"
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="mt-1 w-full rounded-xl bg-[var(--color-mauve)] px-4 py-2.5 text-sm font-semibold text-white
-          transition hover:bg-[#7c3aed] active:bg-[#6d28d9]
-          disabled:cursor-not-allowed disabled:opacity-50"
-      >
+      <button type="submit" disabled={pending} className="btn btn-primary mt-2 w-full py-3">
         {pending ? "Connexion…" : "Se connecter"}
+        {!pending && <ArrowRight className="h-4 w-4" />}
       </button>
+
+      <p className="text-center text-xs text-[var(--color-text-faint)]">
+        Pas de compte ? Demande un lien d'invitation à l'admin de la coloc.
+      </p>
     </form>
   );
 }

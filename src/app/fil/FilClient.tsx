@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useTransition, useRef, useEffect } from "react";
+import { MessagesSquare, Pencil, Send, ThumbsUp, Trash2 } from "lucide-react";
 import { postMessage, editMessage, deleteMessage, toggleReaction } from "./actions";
+import { Avatar, EmptyState } from "@/components/ui";
 import type { MessageTag } from "@/generated/prisma/client";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { TAG_CONFIG } from "./tags";
 
 export interface MessageRow {
   id: string;
@@ -22,61 +23,39 @@ export interface ColocRow {
   displayName: string;
 }
 
-const TAG_CONFIG: Record<MessageTag, { label: string; className: string }> = {
-  MENAGE:  { label: "Ménage",  className: "bg-[var(--color-ok)]/10 text-[var(--color-ok)] border-[var(--color-ok)]/20" },
-  BRUIT:   { label: "Bruit",   className: "bg-red-500/10 text-red-400 border-red-500/20" },
-  ARGENT:  { label: "Argent",  className: "bg-[var(--color-gold)]/10 text-[var(--color-gold)] border-[var(--color-gold)]/20" },
-  GENERAL: { label: "Général", className: "bg-[var(--color-mauve)]/10 text-[var(--color-mauve-text)] border-[var(--color-mauve)]/20" },
-};
-
 const TAGS = Object.keys(TAG_CONFIG) as MessageTag[];
-
-// ─── Formatage des @mentions ──────────────────────────────────────────────────
 
 function renderBody(body: string) {
   const parts = body.split(/(@[a-zA-Z0-9_-]+)/g);
   return parts.map((part, i) =>
     part.startsWith("@")
-      ? <span key={i} className="font-semibold text-[var(--color-mauve-text)]">{part}</span>
+      ? <span key={i} className="font-medium text-[var(--color-mauve-text)]">{part}</span>
       : <span key={i}>{part}</span>
   );
 }
 
-// ─── Saisie avec suggestion @mentions ────────────────────────────────────────
-
-function MessageInput({
-  colocs,
-  onSent,
-}: {
-  colocs: ColocRow[];
-  onSent: (msg: MessageRow) => void;
-}) {
+function MessageInput({ colocs }: { colocs: ColocRow[] }) {
   const [body, setBody] = useState("");
   const [tag, setTag] = useState<MessageTag | null>(null);
   const [isPending, startTransition] = useTransition();
   const [suggestions, setSuggestions] = useState<ColocRow[]>([]);
-  const [mentionQuery, setMentionQuery] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const val = e.target.value;
     setBody(val);
-    // Détecte @query en cours de saisie
     const match = val.slice(0, e.target.selectionStart ?? val.length).match(/@([a-zA-Z0-9_-]*)$/);
     if (match) {
       const q = match[1].toLowerCase();
-      setMentionQuery(q);
       setSuggestions(colocs.filter((c) => c.username?.toLowerCase().startsWith(q) || c.displayName.toLowerCase().startsWith(q)));
     } else {
       setSuggestions([]);
-      setMentionQuery("");
     }
   }
 
   function insertMention(coloc: ColocRow) {
     const username = coloc.username ?? coloc.displayName.toLowerCase();
-    const newBody = body.replace(/@([a-zA-Z0-9_-]*)$/, `@${username} `);
-    setBody(newBody);
+    setBody(body.replace(/@([a-zA-Z0-9_-]*)$/, `@${username} `));
     setSuggestions([]);
     textareaRef.current?.focus();
   }
@@ -102,67 +81,49 @@ function MessageInput({
   }
 
   return (
-    <div className="sticky bottom-0 border-t border-[var(--color-hairline)] bg-[var(--color-glass-strong)] backdrop-blur-xl p-4">
-      {/* Suggestions @mentions */}
-      {suggestions.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-1">
-          {suggestions.slice(0, 5).map((c) => (
-            <button
-              key={c.id}
-              onClick={() => insertMention(c)}
-              className="rounded-lg border border-[var(--color-mauve)]/30 bg-[var(--color-mauve)]/10
-                px-2.5 py-1 text-xs text-[var(--color-mauve-text)] transition hover:bg-[var(--color-mauve)]/20"
-            >
-              @{c.username ?? c.displayName}
-            </button>
-          ))}
-        </div>
-      )}
+    <div className="sticky bottom-20 z-10 pt-2 lg:bottom-6">
+      <div className="card bg-[var(--color-raised)]/95 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl">
+        {suggestions.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1">
+            {suggestions.slice(0, 5).map((c) => (
+              <button key={c.id} onClick={() => insertMention(c)} className="badge-mauve cursor-pointer px-2.5 py-1 hover:bg-[var(--color-mauve)]/20">
+                @{c.username ?? c.displayName}
+              </button>
+            ))}
+          </div>
+        )}
 
-      {/* Tags */}
-      <div className="mb-2 flex gap-1.5 flex-wrap">
-        {TAGS.map((t) => {
-          const cfg = TAG_CONFIG[t];
-          return (
-            <button
-              key={t}
-              onClick={() => setTag(tag === t ? null : t)}
-              className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition-all
-                ${tag === t ? cfg.className : "border-[var(--color-hairline-strong)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]"}`}
-            >
-              {cfg.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Zone de saisie */}
-      <div className="flex gap-2">
         <textarea
           ref={textareaRef}
           value={body}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           rows={2}
-          placeholder="Écris un message… (@ pour mentionner, Entrée pour envoyer)"
-          className="flex-1 resize-none rounded-xl border border-[var(--color-hairline-strong)] bg-[var(--color-raised)]
-            px-4 py-2.5 text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
-            outline-none focus:border-[var(--color-mauve)] focus:ring-1 focus:ring-[var(--color-mauve)]"
+          placeholder="Écrire un message…"
+          className="w-full resize-none bg-transparent px-1 text-sm text-[var(--color-text-main)] placeholder:text-[var(--color-text-faint)] outline-none"
         />
-        <button
-          onClick={handleSubmit}
-          disabled={isPending || !body.trim()}
-          className="self-end rounded-xl bg-[var(--color-mauve)] px-4 py-2.5 text-sm font-semibold text-white
-            transition hover:bg-[#7c3aed] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {isPending ? "…" : "Envoyer"}
-        </button>
+
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-1">
+            {TAGS.map((t) => (
+              <button
+                key={t}
+                onClick={() => setTag(tag === t ? null : t)}
+                className={tag === t ? `${TAG_CONFIG[t].className} cursor-pointer` : "badge-neutral cursor-pointer hover:text-[var(--color-text-main)]"}
+              >
+                {TAG_CONFIG[t].label}
+              </button>
+            ))}
+          </div>
+          <button onClick={handleSubmit} disabled={isPending || !body.trim()} className="btn btn-primary btn-sm">
+            <Send className="h-3.5 w-3.5" />
+            Envoyer
+          </button>
+        </div>
       </div>
     </div>
   );
 }
-
-// ─── Carte message ────────────────────────────────────────────────────────────
 
 function MessageCard({
   msg,
@@ -187,10 +148,9 @@ function MessageCard({
   const canDelete = isMine && reactions.length === 0;
 
   function handleReaction() {
-    const next = myReaction
+    setReactions(myReaction
       ? reactions.filter((r) => r.userId !== currentUserId)
-      : [...reactions, { userId: currentUserId }];
-    setReactions(next);
+      : [...reactions, { userId: currentUserId }]);
     startTransition(() => { void toggleReaction(msg.id); });
   }
 
@@ -214,96 +174,64 @@ function MessageCard({
   }
 
   return (
-    <div className={`flex gap-3 ${isMine ? "flex-row-reverse" : ""}`}>
-      {/* Avatar */}
-      <div
-        className="flex h-8 w-8 flex-shrink-0 items-center justify-center self-end rounded-xl text-xs font-bold text-white"
-        style={{ backgroundColor: msg.author.color }}
-      >
-        {msg.author.displayName.slice(0, 2).toUpperCase()}
-      </div>
+    <div className={`group flex gap-3 ${isMine ? "flex-row-reverse" : ""}`}>
+      <Avatar name={msg.author.displayName} color={msg.author.color} size="sm" className="mt-5" />
 
-      {/* Bulle */}
-      <div className={`flex max-w-[80%] flex-col gap-1 ${isMine ? "items-end" : "items-start"}`}>
-        {/* Auteur + tag */}
-        <div className={`flex items-center gap-2 ${isMine ? "flex-row-reverse" : ""}`}>
-          <span className="text-xs font-semibold text-[var(--color-text-main)]">
-            {isMine ? "Toi" : msg.author.displayName}
-          </span>
-          {msg.tag && (
-            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${TAG_CONFIG[msg.tag].className}`}>
-              {TAG_CONFIG[msg.tag].label}
-            </span>
-          )}
-          <span className="text-[10px] text-[var(--color-text-muted)]">
+      <div className={`flex max-w-[78%] flex-col gap-1 ${isMine ? "items-end" : "items-start"}`}>
+        <div className={`flex items-center gap-2 px-1 ${isMine ? "flex-row-reverse" : ""}`}>
+          <span className="text-xs font-medium text-[var(--color-text-main)]">{isMine ? "Toi" : msg.author.displayName}</span>
+          {msg.tag && <span className={TAG_CONFIG[msg.tag].className}>{TAG_CONFIG[msg.tag].label}</span>}
+          <span className="text-[11px] text-[var(--color-text-faint)]">
             {new Date(msg.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
             {msg.editedAt && " · modifié"}
           </span>
         </div>
 
-        {/* Corps */}
         {editing ? (
-          <form onSubmit={handleEditSubmit} className="flex flex-col gap-1.5 w-full">
-            <textarea
-              value={editBody}
-              onChange={(e) => setEditBody(e.target.value)}
-              autoFocus
-              rows={2}
-              className="w-full resize-none rounded-xl border border-[var(--color-mauve)]/40 bg-[var(--color-raised)]
-                px-3 py-2 text-sm text-[var(--color-text-main)] outline-none focus:ring-1 focus:ring-[var(--color-mauve)]"
-            />
-            {editError && <p className="text-xs text-red-400">{editError}</p>}
-            <div className="flex gap-1.5">
-              <button type="button" onClick={() => setEditing(false)}
-                className="rounded-lg border border-[var(--color-hairline-strong)] px-2.5 py-1 text-xs text-[var(--color-text-muted)]">
-                Annuler
-              </button>
-              <button type="submit" disabled={isPending}
-                className="rounded-lg bg-[var(--color-mauve)] px-2.5 py-1 text-xs font-semibold text-white">
-                Sauvegarder
-              </button>
+          <form onSubmit={handleEditSubmit} className="flex w-full min-w-[240px] flex-col gap-2">
+            <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} autoFocus rows={2} className="input resize-none" />
+            {editError && <p className="text-xs text-[var(--color-down)]">{editError}</p>}
+            <div className="flex justify-end gap-1.5">
+              <button type="button" onClick={() => setEditing(false)} className="btn btn-ghost btn-sm">Annuler</button>
+              <button type="submit" disabled={isPending} className="btn btn-primary btn-sm">Enregistrer</button>
             </div>
           </form>
         ) : (
-          <div className={`rounded-2xl px-4 py-2.5 text-sm text-[var(--color-text-main)]
-            ${isMine
-              ? "rounded-br-sm bg-[var(--color-mauve)]/20"
-              : "rounded-bl-sm bg-[var(--color-raised)] border border-[var(--color-hairline)]"
-            }`}
+          <div
+            className={`whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed
+              ${isMine
+                ? "rounded-tr-md bg-gradient-to-br from-[var(--color-mauve)] to-[var(--color-mauve-strong)] text-white [&_span.font-medium]:text-white [&_span.font-medium]:underline"
+                : "rounded-tl-md border border-[var(--color-hairline)] bg-[var(--color-raised)] text-[var(--color-text-main)]"
+              }`}
           >
             {renderBody(body)}
           </div>
         )}
 
-        {/* Actions */}
-        <div className={`flex items-center gap-2 ${isMine ? "flex-row-reverse" : ""}`}>
-          {/* Réaction */}
+        <div className={`flex items-center gap-1 ${isMine ? "flex-row-reverse" : ""}`}>
           <button
             onClick={handleReaction}
             disabled={isPending}
-            className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-all
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] transition-colors
               ${myReaction
-                ? "border-[var(--color-ok)]/30 bg-[var(--color-ok)]/10 text-[var(--color-ok)]"
-                : "border-[var(--color-hairline-strong)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]"
+                ? "bg-[var(--color-mauve)]/15 text-[var(--color-mauve-text)]"
+                : reactions.length > 0
+                  ? "text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]"
+                  : "text-[var(--color-text-faint)] opacity-0 hover:text-[var(--color-text-main)] group-hover:opacity-100 focus-visible:opacity-100"
               }`}
+            aria-label="Approuver"
           >
-            <span>+1</span>
-            {reactions.length > 0 && <span className="font-semibold">{reactions.length}</span>}
+            <ThumbsUp className="h-3 w-3" />
+            {reactions.length > 0 && reactions.length}
           </button>
-
-          {/* Modifier */}
           {canEdit && !editing && (
-            <button onClick={() => setEditing(true)}
-              className="text-[10px] text-[var(--color-text-muted)] underline decoration-dotted hover:text-[var(--color-text-main)]">
-              Modifier
+            <button onClick={() => setEditing(true)} className="rounded-full p-1 text-[var(--color-text-faint)] opacity-0 transition-opacity hover:text-[var(--color-text-main)] group-hover:opacity-100 focus-visible:opacity-100" aria-label="Modifier">
+              <Pencil className="h-3 w-3" />
             </button>
           )}
-
-          {/* Supprimer */}
           {canDelete && !editing && (
-            <button onClick={handleDelete} disabled={isPending}
-              className="text-[10px] text-[var(--color-text-muted)] underline decoration-dotted hover:text-red-400">
-              Supprimer
+            <button onClick={handleDelete} disabled={isPending} className="rounded-full p-1 text-[var(--color-text-faint)] opacity-0 transition-opacity hover:text-[var(--color-down)] group-hover:opacity-100 focus-visible:opacity-100" aria-label="Supprimer">
+              <Trash2 className="h-3 w-3" />
             </button>
           )}
         </div>
@@ -311,8 +239,6 @@ function MessageCard({
     </div>
   );
 }
-
-// ─── Fil complet ──────────────────────────────────────────────────────────────
 
 export function FilClient({
   initialMessages,
@@ -325,20 +251,22 @@ export function FilClient({
   currentUserId: string;
   activeTag: MessageTag | null;
 }) {
-  const [messages, setMessages] = useState(initialMessages);
+  // Dérivé des props : les messages revalidés par le serveur s'affichent sans recharger
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const messages = initialMessages.filter((m) => !deletedIds.has(m.id));
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages.length]);
 
   function handleDelete(id: string) {
-    setMessages((prev) => prev.filter((m) => m.id !== id));
+    setDeletedIds((prev) => new Set(prev).add(id));
   }
 
   const filtered = activeTag ? messages.filter((m) => m.tag === activeTag) : messages;
 
-  // Regrouper par jour
   const grouped: { date: string; msgs: MessageRow[] }[] = [];
   for (const msg of filtered) {
     const date = new Date(msg.createdAt).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
@@ -349,37 +277,33 @@ export function FilClient({
 
   return (
     <div className="flex flex-col">
-      {/* Messages */}
-      <div className="flex flex-col gap-4 px-4 py-6">
-        {grouped.length === 0 && (
-          <div className="py-12 text-center">
-            <p className="text-3xl">💬</p>
-            <p className="mt-3 font-medium text-[var(--color-text-main)]">
-              {activeTag ? "Aucun message avec ce tag" : "Pas encore de messages"}
-            </p>
-            <p className="mt-1 text-sm text-[var(--color-text-muted)]">Sois le premier à écrire.</p>
-          </div>
-        )}
-
-        {grouped.map(({ date, msgs }) => (
-          <div key={date}>
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex-1 border-t border-[var(--color-hairline)]" />
-              <span className="text-xs text-[var(--color-text-muted)]">{date}</span>
-              <div className="flex-1 border-t border-[var(--color-hairline)]" />
+      {grouped.length === 0 ? (
+        <EmptyState
+          icon={MessagesSquare}
+          title={activeTag ? "Aucun message sur ce sujet" : "Pas encore de messages"}
+          description="Écris le premier message ci-dessous."
+        />
+      ) : (
+        <div className="flex flex-col gap-6 pb-4">
+          {grouped.map(({ date, msgs }) => (
+            <div key={date}>
+              <div className="mb-4 flex items-center gap-3">
+                <div className="h-px flex-1 bg-[var(--color-hairline)]" />
+                <span className="text-[11px] font-medium capitalize text-[var(--color-text-faint)]">{date}</span>
+                <div className="h-px flex-1 bg-[var(--color-hairline)]" />
+              </div>
+              <div className="flex flex-col gap-4">
+                {msgs.map((msg) => (
+                  <MessageCard key={msg.id} msg={msg} currentUserId={currentUserId} onDelete={handleDelete} />
+                ))}
+              </div>
             </div>
-            <div className="flex flex-col gap-3">
-              {msgs.map((msg) => (
-                <MessageCard key={msg.id} msg={msg} currentUserId={currentUserId} onDelete={handleDelete} />
-              ))}
-            </div>
-          </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
+          ))}
+        </div>
+      )}
+      <div ref={bottomRef} />
 
-      {/* Zone de saisie sticky en bas */}
-      <MessageInput colocs={colocs} onSent={(msg) => setMessages((prev) => [...prev, msg])} />
+      <MessageInput colocs={colocs} />
     </div>
   );
 }
