@@ -9,9 +9,11 @@ const PUBLIC_PATHS = ["/connexion", "/invitation/"];
 export default auth((req) => {
   const { pathname } = req.nextUrl;
 
+  // /api/cron/ vérifie lui-même son Bearer CRON_SECRET
   const isPublic =
     PUBLIC_PATHS.some((p) => pathname.startsWith(p)) ||
-    pathname.startsWith("/api/auth/");
+    pathname.startsWith("/api/auth/") ||
+    pathname.startsWith("/api/cron/");
 
   if (!req.auth && !isPublic) {
     const url = req.nextUrl.clone();
@@ -24,5 +26,8 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.svg).*)"],
+  // Fichiers PWA (service worker, manifest, icônes) chargés par le navigateur sans session
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|sw\\.js|swe-worker-.*\\.js|manifest\\.webmanifest|icons/|.*\\.(?:svg|png|ico|webp)$).*)",
+  ],
 };

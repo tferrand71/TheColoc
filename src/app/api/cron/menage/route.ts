@@ -8,9 +8,9 @@ import { getWeekStart } from "@/lib/chores-utils";
 // Dimanche 19h (Paris) : rappel si pas encore fait → ?type=sunday
 
 export async function GET(req: NextRequest) {
+  const secret = process.env.CRON_SECRET;
   const auth = req.headers.get("authorization");
-  const expected = `Bearer ${process.env.CRON_SECRET}`;
-  if (auth !== expected) {
+  if (!secret || auth !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
