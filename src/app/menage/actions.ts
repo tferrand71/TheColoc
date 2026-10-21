@@ -111,6 +111,51 @@ export async function respondToSwap(swapRequestId: string, accept: boolean) {
   return { ok: true };
 }
 
+// ── Déplacer une personne dans le planning (admin) ───────────────────────────
+
+/**
+ * Échange les personnes de deux semaines : la personne de `assignmentId` prend la semaine
+ * de `otherAssignmentId`, et inversement. Chaque semaine garde ainsi une personne.
+ */
+export async function swapWeeks(assignmentId: string, otherAssignmentId: string) {
+  const session = await auth();
+  if (!session?.user) return { error: "Non connecté" };
+  if (session.user.role !== "ADMIN") return { error: "Réservé à l'administrateur" };
+  if (assignmentId === otherAssignmentId) return { error: "Choisis une autre semaine" };
+
+  const [a, b] = await Promise.all([
+    prisma.choreAssignment.findUnique({ where: { id: assignmentId }, include: { user: true } }),
+    prisma.choreAssignment.findUnique({ where: { id: otherAssignmentId }, include: { user: true } }),
+  ]);
+
+  if (!a || !b) return { error: "Semaine introuvable" };
+  if (a.user.householdId !== session.user.householdId || b.user.householdId !== session.user.householdId) {
+    return { error: "Foyer incorrect" };
+  }
+  if (a.status === "DONE" || b.status === "DONE") return { error: "Une de ces semaines est déjà validée" };
+  if (a.userId === b.userId) return { ok: true };
+
+  // Les demandes d'échange en attente sur ces semaines ne correspondent plus aux personnes
+  await prisma.$transaction([
+    prisma.swapRequest.updateMany({
+      where: {
+        status: "PENDING",
+        OR: [
+          { fromAssignmentId: { in: [a.id, b.id] } },
+          { toAssignmentId: { in: [a.id, b.id] } },
+        ],
+      },
+      data: { status: "DECLINED", resolvedAt: new Date() },
+    }),
+    prisma.choreAssignment.update({ where: { id: a.id }, data: { userId: b.userId } }),
+    prisma.choreAssignment.update({ where: { id: b.id }, data: { userId: a.userId } }),
+  ]);
+
+  revalidatePath("/menage");
+  revalidatePath("/");
+  return { ok: true };
+}
+
 // ── Absences ─────────────────────────────────────────────────────────────────
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;

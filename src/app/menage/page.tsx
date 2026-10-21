@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Brush, Sparkles } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { getChoreSchedule, getWeekStart } from "@/lib/chores";
+import { formatWeekRange, getChoreSchedule, getWeekStart } from "@/lib/chores";
 import { ABSENCE_MIN_DAYS, isAbsentForWeek } from "@/lib/chores-utils";
 import { PageHeader } from "@/components/ui";
 import { ChoreWeekCard, type AssignmentRow, type ColocOption } from "./ChoreWeekCard";
@@ -48,6 +48,11 @@ export default async function MenagePage() {
       assignmentId: assignments.find((a) => a.userId === c.id)?.id ?? null,
     }));
 
+  // Semaines vers lesquelles l'admin peut déplacer quelqu'un (non validées)
+  const moveTargets = assignments
+    .filter((a) => a.status === "TODO")
+    .map((a) => ({ id: a.id, label: `${a.user.displayName} · ${formatWeekRange(a.weekStart)}` }));
+
   const rows = assignments as unknown as AssignmentRow[];
   const current = rows.find((a) => a.weekStart.getTime() === currentWeekStart.getTime());
   const upcoming = rows.filter((a) => a.weekStart.getTime() !== currentWeekStart.getTime());
@@ -82,6 +87,8 @@ export default async function MenagePage() {
               currentUserId={currentUserId}
               colocs={colocOptions}
               absentNames={absentNamesForWeek(current.weekStart)}
+              isAdmin={role === "ADMIN"}
+              moveTargets={moveTargets}
             />
           </section>
         )}
@@ -98,6 +105,8 @@ export default async function MenagePage() {
                 currentUserId={currentUserId}
                 colocs={colocOptions}
                 absentNames={absentNamesForWeek(assignment.weekStart)}
+                isAdmin={role === "ADMIN"}
+                moveTargets={moveTargets}
               />
             ))}
           </div>

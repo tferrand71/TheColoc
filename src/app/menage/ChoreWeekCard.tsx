@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type DragEvent } from "react";
 import { ArrowLeftRight, Check, CircleCheck, Clock, Plane } from "lucide-react";
-import { markDone, requestSwap, respondToSwap } from "./actions";
+import { markDone, requestSwap, respondToSwap, swapWeeks } from "./actions";
 import { formatWeekRange } from "@/lib/chores-utils";
 import { Avatar } from "@/components/ui";
 
@@ -31,6 +31,11 @@ export interface ColocOption {
   assignmentId: string | null;
 }
 
+export interface MoveTarget {
+  id: string;
+  label: string;
+}
+
 interface Props {
   assignment: AssignmentRow;
   isCurrent: boolean;
@@ -38,6 +43,38 @@ interface Props {
   currentUserId: string;
   colocs: ColocOption[];
   absentNames?: string[];
+  isAdmin?: boolean;
+  moveTargets?: MoveTarget[];
+}
+
+function MoveWeek({
+  targets,
+  disabled,
+  error,
+  onMove,
+}: {
+  targets: MoveTarget[];
+  disabled: boolean;
+  error: string | null;
+  onMove: (id: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 border-t border-[var(--color-hairline)] pt-3">
+      <p className="label">Déplacer vers une autre semaine</p>
+      <select
+        value=""
+        disabled={disabled || targets.length === 0}
+        onChange={(e) => onMove(e.target.value)}
+        className="input"
+      >
+        <option value="" disabled>Choisir une semaine…</option>
+        {targets.map((t) => (
+          <option key={t.id} value={t.id}>{t.label}</option>
+        ))}
+      </select>
+      {error && <p className="text-xs text-[var(--color-down)]">{error}</p>}
+    </div>
+  );
 }
 
 function AbsentNote({ names }: { names: string[] }) {
@@ -159,9 +196,20 @@ function SwapIncoming({ swap }: { swap: AssignmentRow["swapTo"][number] }) {
   );
 }
 
-export function ChoreWeekCard({ assignment, isCurrent, isMyWeek, currentUserId, colocs, absentNames = [] }: Props) {
+export function ChoreWeekCard({
+  assignment,
+  isCurrent,
+  isMyWeek,
+  currentUserId,
+  colocs,
+  absentNames = [],
+  isAdmin = false,
+  moveTargets = [],
+}: Props) {
   const [isPending, startTransition] = useTransition();
   const [isDone, setIsDone] = useState(assignment.status === "DONE");
+  const [isMoving, startMove] = useTransition();
+  const [moveError, setMoveError] = useState<string | null>(null);
 
   const hasPendingOutgoing = assignment.swapFrom.length > 0;
   const incomingSwaps = assignment.swapTo.filter((s) => s.requester.id !== currentUserId);
@@ -174,6 +222,38 @@ export function ChoreWeekCard({ assignment, isCurrent, isMyWeek, currentUserId, 
     });
   }
 
+  // Échange la personne de cette semaine avec celle de `otherId`
+  function moveTo(otherId: string) {
+    setMoveError(null);
+    startMove(async () => {
+      const res = await swapWeeks(assignment.id, otherId);
+      if (!res.ok) setMoveError(res.error ?? "Erreur");
+    });
+  }
+
+  // Admin : glisser une semaine sur une autre pour échanger les personnes (bureau)
+  const canDrag = isAdmin && !isDone;
+  const dragProps = canDrag
+    ? {
+        draggable: true,
+        onDragStart: (e: DragEvent<HTMLDivElement>) => {
+          e.dataTransfer.setData("text/plain", assignment.id);
+          e.dataTransfer.effectAllowed = "move";
+        },
+        onDragOver: (e: DragEvent<HTMLDivElement>) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+        },
+        onDrop: (e: DragEvent<HTMLDivElement>) => {
+          e.preventDefault();
+          const sourceId = e.dataTransfer.getData("text/plain");
+          if (sourceId && sourceId !== assignment.id) moveTo(sourceId);
+        },
+      }
+    : {};
+
+  const targets = moveTargets.filter((t) => t.id !== assignment.id);
+
   const statusBadge = isDone
     ? <span className="badge-ok"><CircleCheck className="h-3 w-3" /> Fait</span>
     : isCurrent
@@ -182,7 +262,7 @@ export function ChoreWeekCard({ assignment, isCurrent, isMyWeek, currentUserId, 
 
   if (!isCurrent) {
     return (
-      <div className="card flex flex-col gap-3 p-4">
+      <div className="card flex flex-col gap-3 p-4" {...dragProps}>
         <div className="flex items-center gap-3">
           <Avatar name={assignment.user.displayName} color={assignment.user.color} size="md" />
           <div className="min-w-0 flex-1">
@@ -203,12 +283,18 @@ export function ChoreWeekCard({ assignment, isCurrent, isMyWeek, currentUserId, 
           <SwapRequestPanel assignment={assignment} colocs={colocs} />
         )}
         {incomingSwaps.map((swap) => <SwapIncoming key={swap.id} swap={swap} />)}
+        {isAdmin && !isDone && (
+          <MoveWeek targets={targets} disabled={isMoving} error={moveError} onMove={moveTo} />
+        )}
       </div>
     );
   }
 
   return (
-    <div className={`card flex flex-col gap-5 p-6 ${isMyWeek && !isDone ? "border-[var(--color-mauve)]/35 shadow-[0_20px_60px_-30px_rgba(139,92,246,0.6)]" : ""}`}>
+    <div
+      className={`card flex flex-col gap-5 p-6 ${isMyWeek && !isDone ? "border-[var(--color-mauve)]/35 shadow-[0_20px_60px_-30px_rgba(139,92,246,0.6)]" : ""}`}
+      {...dragProps}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-4">
           <Avatar name={assignment.user.displayName} color={assignment.user.color} size="lg" />
@@ -248,6 +334,10 @@ export function ChoreWeekCard({ assignment, isCurrent, isMyWeek, currentUserId, 
       )}
 
       {incomingSwaps.map((swap) => <SwapIncoming key={swap.id} swap={swap} />)}
+
+      {isAdmin && !isDone && (
+        <MoveWeek targets={targets} disabled={isMoving} error={moveError} onMove={moveTo} />
+      )}
     </div>
   );
 }
