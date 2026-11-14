@@ -19,8 +19,19 @@ interface PushPayload {
   url?: string;
 }
 
-/** Envoie une notification push à tous les appareils d'un utilisateur. */
-export async function sendPushToUser(userId: string, payload: PushPayload) {
+/** Résultat d'un envoi : permet à l'appelant de savoir si quelqu'un a vraiment reçu le message. */
+export interface PushDelivery {
+  /** Appareils abonnés de l'utilisateur au moment de l'envoi. */
+  devices: number;
+  /** Appareils dont le service de push (Apple, Google, Mozilla) a accepté le message. */
+  delivered: number;
+}
+
+/**
+ * Envoie une notification push à tous les appareils d'un utilisateur.
+ * Ne lève jamais d'erreur d'envoi : c'est à l'appelant de lire `delivered`.
+ */
+export async function sendPushToUser(userId: string, payload: PushPayload): Promise<PushDelivery> {
   ensureVapid();
   const subscriptions = await prisma.pushSubscription.findMany({
     where: { userId },
@@ -41,7 +52,10 @@ export async function sendPushToUser(userId: string, payload: PushPayload) {
     )
   );
 
-  return results;
+  return {
+    devices: subscriptions.length,
+    delivered: results.filter((r) => r.status === "fulfilled").length,
+  };
 }
 
 /** Vérifie si une notif a déjà été envoyée (anti-doublon). */

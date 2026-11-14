@@ -58,8 +58,20 @@ export async function GET(req: NextRequest) {
     ? "Pense à passer le balai et la serpillière ce weekend."
     : "Le ménage de cette semaine n'est pas encore validé.";
 
-  await sendPushToUser(user.id, { title, body, url: "/menage" });
+  const { devices, delivered } = await sendPushToUser(user.id, { title, body, url: "/menage" });
+
+  // On n'enregistre la notification que si au moins un appareil l'a reçue. Sinon l'anti-doublon
+  // la bloquerait ensuite alors que personne ne l'a vue (aucun appareil abonné, ou tous en échec).
+  if (delivered === 0) {
+    if (devices === 0) {
+      return NextResponse.json({ skipped: "no subscribed device", userId: user.id, kind });
+    }
+    // Des appareils existent mais le service de push a refusé : erreur 502, visible dans les
+    // journaux de coloc-cron (curl -f), et la notification reste renvoyable.
+    return NextResponse.json({ error: "push delivery failed", userId: user.id, kind, devices }, { status: 502 });
+  }
+
   await logNotification(user.id, kind, refId);
 
-  return NextResponse.json({ ok: true, userId: user.id, kind });
+  return NextResponse.json({ ok: true, userId: user.id, kind, delivered, devices });
 }
