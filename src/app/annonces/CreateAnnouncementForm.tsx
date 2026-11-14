@@ -3,15 +3,12 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
+import { SelectMenu } from "@/components/SelectMenu";
 import { createAnnouncement } from "./actions";
+import { ANNOUNCEMENT_TYPES } from "./types";
 
-const TYPES = [
-  { value: "REUNION", label: "Réunion" },
-  { value: "VISITE", label: "Visite" },
-  { value: "TRAVAUX", label: "Travaux" },
-  { value: "INFORMATION", label: "Information" },
-  { value: "AUTRE", label: "Autre" },
-] as const;
+// Mêmes libellés et icônes que la liste des annonces (annonces/types.ts)
+const TYPE_OPTIONS = Object.entries(ANNOUNCEMENT_TYPES).map(([value, { label, icon }]) => ({ value, label, icon }));
 
 export function CreateAnnouncementForm() {
   const [open, setOpen] = useState(false);
@@ -61,10 +58,7 @@ export function CreateAnnouncementForm() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="ann-type" className="label">Type</label>
-                  <select id="ann-type" name="type" required className="input">
-                    <option value="">Choisir…</option>
-                    {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
+                  <SelectMenu id="ann-type" name="type" required options={TYPE_OPTIONS} />
                 </div>
                 <div>
                   <label htmlFor="ann-date" className="label">Date <span className="text-[var(--color-text-faint)]">(optionnel)</span></label>
