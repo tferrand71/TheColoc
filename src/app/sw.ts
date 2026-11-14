@@ -1,6 +1,7 @@
 import { defaultCache } from "@serwist/next/worker";
 import { Serwist } from "serwist";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
+import { iconUrl } from "../lib/pwa";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -27,8 +28,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
+      icon: iconUrl("icon-192.png"),
+      badge: iconUrl("icon-192.png"),
       data: { url: data.url ?? "/" },
       tag: data.title,
     })
