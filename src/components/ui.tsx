@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, type LucideIcon } from "lucide-react";
 
@@ -128,14 +129,10 @@ export function EmptyState({
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <span className="flex items-center gap-2.5">
-      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--color-mauve)] to-[var(--color-pink)] shadow-[0_6px_20px_-8px_rgba(139,92,246,0.9)]">
-        <svg viewBox="0 0 24 24" className="h-4 w-4 text-white" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M3 10.5 12 3l9 7.5" />
-          <path d="M5 9.5V20h14V9.5" />
-          <path d="M10 20v-5h4v5" />
-        </svg>
-      </span>
+    <span className="flex items-center gap-2">
+      {/* Marque vectorielle (public/logo-coloc.svg) : une maison dont les trois fenêtres
+          représentent le ménage, les courses et la discussion. Version simplifiée, lisible en petit. */}
+      <Image src="/logo-coloc.svg" alt="" width={40} height={40} unoptimized className="h-10 w-10 shrink-0" aria-hidden />
       {!compact && (
         <span className="text-[15px] font-semibold tracking-tight text-[var(--color-text-main)]">
           La Coloc
