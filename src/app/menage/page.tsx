@@ -51,7 +51,13 @@ export default async function MenagePage() {
   // Semaines vers lesquelles l'admin peut déplacer quelqu'un (non validées)
   const moveTargets = assignments
     .filter((a) => a.status === "TODO")
-    .map((a) => ({ id: a.id, label: `${a.user.displayName} · ${formatWeekRange(a.weekStart)}` }));
+    .map((a) => ({
+      id: a.id,
+      label: `${a.user.displayName} · ${formatWeekRange(a.weekStart)}`,
+      name: a.user.displayName,
+      color: a.user.color,
+      range: formatWeekRange(a.weekStart),
+    }));
 
   const rows = assignments as unknown as AssignmentRow[];
   const current = rows.find((a) => a.weekStart.getTime() === currentWeekStart.getTime());

@@ -5,6 +5,7 @@ import { ArrowLeftRight, Check, CircleCheck, Clock, Plane } from "lucide-react";
 import { markDone, requestSwap, respondToSwap, swapWeeks } from "./actions";
 import { formatWeekRange } from "@/lib/chores-utils";
 import { Avatar } from "@/components/ui";
+import { MoveWeek, type MoveTarget } from "./MoveWeek";
 
 export interface AssignmentRow {
   id: string;
@@ -31,10 +32,7 @@ export interface ColocOption {
   assignmentId: string | null;
 }
 
-export interface MoveTarget {
-  id: string;
-  label: string;
-}
+export type { MoveTarget };
 
 interface Props {
   assignment: AssignmentRow;
@@ -45,36 +43,6 @@ interface Props {
   absentNames?: string[];
   isAdmin?: boolean;
   moveTargets?: MoveTarget[];
-}
-
-function MoveWeek({
-  targets,
-  disabled,
-  error,
-  onMove,
-}: {
-  targets: MoveTarget[];
-  disabled: boolean;
-  error: string | null;
-  onMove: (id: string) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5 border-t border-[var(--color-hairline)] pt-3">
-      <p className="label">Déplacer vers une autre semaine</p>
-      <select
-        value=""
-        disabled={disabled || targets.length === 0}
-        onChange={(e) => onMove(e.target.value)}
-        className="input"
-      >
-        <option value="" disabled>Choisir une semaine…</option>
-        {targets.map((t) => (
-          <option key={t.id} value={t.id}>{t.label}</option>
-        ))}
-      </select>
-      {error && <p className="text-xs text-[var(--color-down)]">{error}</p>}
-    </div>
-  );
 }
 
 function AbsentNote({ names }: { names: string[] }) {
